@@ -45,8 +45,16 @@ const processQueue = (error: unknown, token: string | null = null) => {
 
 const clearAuthAndRedirect = () => {
   Cookies.remove("accessToken");
+  Cookies.remove("accessToken", { path: "/" });
   Cookies.remove("refreshToken");
+  Cookies.remove("refreshToken", { path: "/" });
   if (typeof window !== "undefined") {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      // ignore
+    }
     window.location.href = "/auth/login";
   }
 };
@@ -112,12 +120,6 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
-    }
-
-    // 403 Forbidden → admin নয় এমন user
-    if (error.response?.status === 403) {
-      clearAuthAndRedirect();
-      return Promise.reject(error);
     }
 
     return Promise.reject(error);

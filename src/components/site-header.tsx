@@ -1,4 +1,5 @@
-"use client"
+"use client";
+
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -7,14 +8,12 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { IconBell } from "@tabler/icons-react";
-import { User } from "lucide-react";
-import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { usePathname } from "next/navigation";
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const notifications: any = { data: [1, 2, 3] }; // Mock data for indicator
+  const notifications = { data: [1, 2, 3] };
 
   return (
     <header className="flex h-[100px] shrink-0 items-center gap-2 bg-background border-b-0 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-[100px]">
@@ -24,7 +23,7 @@ export function SiteHeader() {
           {pathname === "/dashboard" && (
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back, Admin 👋</h1>
-              <p className="text-sm text-muted-foreground mt-1">Here's what's happening with your platform today.</p>
+              <p className="text-sm text-muted-foreground mt-1">Here&apos;s what&apos;s happening with your platform today.</p>
             </div>
           )}
         </div>
@@ -34,9 +33,9 @@ export function SiteHeader() {
             <DropdownMenuTrigger asChild>
               <div className="relative cursor-pointer">
                 <div className="w-10 h-10 rounded-full bg-white border shadow-sm flex items-center justify-center text-primary hover:bg-gray-50 transition-colors">
-                  {notifications?.data?.length > 0 && (
+                  {notifications.data.length > 0 && (
                     <div className="w-4 h-4 rounded-full bg-primary absolute -top-1 -right-1 border-2 border-white flex items-center justify-center">
-                      <span className="text-[9px] text-white font-bold">{notifications?.data?.length}</span>
+                      <span className="text-[9px] text-white font-bold">{notifications.data.length}</span>
                     </div>
                   )}
                   <IconBell size={20} />

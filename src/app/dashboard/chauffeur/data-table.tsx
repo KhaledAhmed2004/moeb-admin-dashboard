@@ -16,14 +16,6 @@ import {
   useReactTable,
   Row,
 } from "@tanstack/react-table";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Search,
-} from "lucide-react";
 
 import {
   Table,
@@ -33,22 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTableToolbar } from "./components/data-table/DataTableToolbar";
+import { DataTablePagination } from "./components/data-table/DataTablePagination";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -183,58 +162,11 @@ export function DataTable<TData, TValue>({
   return (
     <div className="w-full space-y-4">
       {/* Top Search & Column Controls Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {searchKey && (
-          <div className="relative max-w-sm w-full">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <Input
-              placeholder={`Search ${searchKey}...`}
-              value={
-                (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
-              }
-              onChange={(event) =>
-                table.getColumn(searchKey)?.setFilterValue(event.target.value)
-              }
-              className="pl-9 h-10 text-xs bg-white rounded-xl border-gray-200"
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-10 text-xs font-semibold rounded-xl bg-white border-gray-200"
-              >
-                Columns <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize text-xs"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {actionSlot && <div>{actionSlot}</div>}
-        </div>
-      </div>
+      <DataTableToolbar
+        table={table}
+        searchKey={searchKey}
+        actionSlot={actionSlot}
+      />
 
       {/* Main Table */}
       <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-xs">
@@ -325,126 +257,18 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Interactive Pagination Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 text-xs">
-        {/* Left Side: Summary & Page Size Selector */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <span className="text-gray-600 font-medium">
-            Showing <strong className="text-gray-900">{startRecord}</strong> to{" "}
-            <strong className="text-gray-900">{endRecord}</strong> of{" "}
-            <strong className="text-gray-900">{totalCount}</strong> chauffeurs
-          </span>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-500">Rows per page:</span>
-            <Select
-              value={String(currentLimit)}
-              onValueChange={handleLimitSelect}
-            >
-              <SelectTrigger className="h-8 w-16 text-xs bg-white rounded-lg border-gray-200">
-                <SelectValue placeholder="10" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5" className="text-xs">
-                  5
-                </SelectItem>
-                <SelectItem value="10" className="text-xs">
-                  10
-                </SelectItem>
-                <SelectItem value="20" className="text-xs">
-                  20
-                </SelectItem>
-                <SelectItem value="50" className="text-xs">
-                  50
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Right Side: Page Navigation Buttons */}
-        <div className="flex items-center gap-1">
-          {/* First Page */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handlePageClick(1)}
-            disabled={currentPage === 1 || isLoading}
-            className="h-8 w-8 rounded-lg bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-            title="First Page"
-          >
-            <ChevronsLeft size={14} />
-          </Button>
-
-          {/* Previous Page */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageClick(currentPage - 1)}
-            disabled={currentPage === 1 || isLoading}
-            className="h-8 px-2.5 rounded-lg bg-white border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold gap-1"
-          >
-            <ChevronLeft size={14} />
-            Prev
-          </Button>
-
-          {/* Page Numbers */}
-          <div className="flex items-center gap-1 mx-1">
-            {pageNumbers.map((p, idx) => {
-              if (p === "...") {
-                return (
-                  <span
-                    key={`ellipsis-${idx}`}
-                    className="px-1.5 text-xs text-gray-400 font-bold"
-                  >
-                    ...
-                  </span>
-                );
-              }
-              const pageNum = Number(p);
-              const isActive = pageNum === currentPage;
-              return (
-                <button
-                  key={pageNum}
-                  type="button"
-                  onClick={() => handlePageClick(pageNum)}
-                  disabled={isLoading}
-                  className={`h-8 min-w-[32px] px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-primary text-white shadow-xs"
-                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Next Page */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageClick(currentPage + 1)}
-            disabled={currentPage >= totalPagesCount || isLoading}
-            className="h-8 px-2.5 rounded-lg bg-white border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold gap-1"
-          >
-            Next
-            <ChevronRight size={14} />
-          </Button>
-
-          {/* Last Page */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handlePageClick(totalPagesCount)}
-            disabled={currentPage >= totalPagesCount || isLoading}
-            className="h-8 w-8 rounded-lg bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-            title="Last Page"
-          >
-            <ChevronsRight size={14} />
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination
+        startRecord={startRecord}
+        endRecord={endRecord}
+        totalCount={totalCount}
+        currentLimit={currentLimit}
+        currentPage={currentPage}
+        totalPagesCount={totalPagesCount}
+        pageNumbers={pageNumbers}
+        isLoading={isLoading}
+        handleLimitSelect={handleLimitSelect}
+        handlePageClick={handlePageClick}
+      />
     </div>
   );
 }

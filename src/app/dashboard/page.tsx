@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -20,16 +21,35 @@ import {
   Calendar,
   TrendingUp,
   Users,
-  CheckCircle2,
-  Ban,
+  CreditCard,
+  Package,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import {
-  StatCard,
-  DriverStatsData,
-} from "./chauffeur/StatCard";
+import { StatCard } from "@/components/shared/StatCard";
+
+export interface AdminDashboardStatMetric {
+  total: number;
+  thisPeriodCount: number;
+  lastPeriodCount: number;
+  growth: number;
+  growthType: "increase" | "decrease" | "no_change" | string;
+}
+
+export interface AdminDashboardStatsData {
+  users: AdminDashboardStatMetric;
+  activeSubscriptions: AdminDashboardStatMetric;
+  pendingDrivers: AdminDashboardStatMetric;
+  activeJobs: AdminDashboardStatMetric;
+  totalItems: AdminDashboardStatMetric;
+}
+
+export interface AdminDashboardStatsResponse {
+  success: boolean;
+  message?: string;
+  data: AdminDashboardStatsData;
+}
 
 // ─── Static chart data ───────────────────────────────────────────────────────
 
@@ -48,68 +68,197 @@ const areaChartData = [
   { name: "Dec", uv: 38 },
 ];
 
-const pieData = [
-  { name: "Chauffeurs", value: 400, color: "#8b5cf6" },
-  { name: "Jobs", value: 300, color: "#f59e0b" },
-  { name: "Listings", value: 200, color: "#10b981" },
+const DEFAULT_PIE_DATA = [
+  { name: "Users", value: 0, color: "#6366f1" },
+  { name: "Pending Chauffeurs", value: 0, color: "#f59e0b" },
+  { name: "Jobs", value: 0, color: "#3b82f6" },
+  { name: "Items", value: 0, color: "#10b981" },
 ];
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 const MainPage = () => {
-  const { data: statsData, isLoading: isStatsLoading } = useQuery({
-    queryKey: ["admin-chauffeur-stats"],
+  // Query platform statistics: GET /api/v1/admin/stats
+  const { data: statsResponse, isLoading: isStatsLoading } = useQuery<AdminDashboardStatsResponse>({
+    queryKey: ["admin-dashboard-stats"],
     queryFn: async () => {
-      const response = await api.get("/admin/chauffeur-stats");
-      return response.data?.data as DriverStatsData;
+      try {
+        const response = await api.get("/admin/stats");
+        return response.data;
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { status?: number } };
+        if (axiosErr.response?.status === 404) {
+          const response = await api.get("/api/v1/admin/stats");
+          return response.data;
+        }
+        throw err;
+      }
     },
   });
 
-  const totalDrivers = statsData?.totalChauffeurs ?? statsData?.totalDrivers;
-  const pendingDrivers =
-    statsData?.pendingChauffeurs ?? statsData?.pendingDrivers;
-  const suspendedDrivers =
-    statsData?.suspendedChauffeurs ?? statsData?.suspendedDrivers;
-  const approvedDrivers =
-    statsData?.approvedChauffeurs ??
-    statsData?.approvedDrivers ?? {
-      count: Math.max(
-        0,
-        (totalDrivers?.count ?? totalDrivers?.total ?? 0) -
-          (pendingDrivers?.count ?? pendingDrivers?.total ?? 0) -
-          (suspendedDrivers?.count ?? suspendedDrivers?.total ?? 0),
-      ),
-      growth: 0,
-      growthType: "no_change",
-    };
+  const stats = statsResponse?.data;
+
+  const pieData = useMemo(() => {
+    if (!stats) return DEFAULT_PIE_DATA;
+    return [
+      { name: "Users", value: stats.users?.total ?? 0, color: "#6366f1" },
+      { name: "Pending Chauffeurs", value: stats.pendingDrivers?.total ?? 0, color: "#f59e0b" },
+      { name: "Jobs", value: stats.activeJobs?.total ?? 0, color: "#3b82f6" },
+      { name: "Items", value: stats.totalItems?.total ?? 0, color: "#10b981" },
+    ];
+  }, [stats]);
+
+  const pieTotal = useMemo(
+    () => pieData.reduce((acc, curr) => acc + curr.value, 0),
+    [pieData]
+  );
+
+  const chartPieData = useMemo(() => {
+    const hasData = pieData.some((d) => d.value > 0);
+    if (!hasData) {
+      return [{ name: "No data", value: 1, color: "#e2e8f0" }];
+    }
+    return pieData.filter((d) => d.value > 0);
+  }, [pieData]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6 bg-background">
-      {/* ── Stats Row (chauffeur StatCard) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      {/* ── Stats Row (Platform Growth Summary: 5 Cards from GET /api/v1/admin/stats) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <StatCard
-          title="Total Chauffeurs"
-          value={totalDrivers?.count ?? totalDrivers?.total ?? 0}
-          metric={totalDrivers}
+          title="Total Users"
+          value={stats?.users?.total ?? 0}
+          metric={stats?.users}
+          icon={Users}
+          colorClass="text-indigo-700"
+          bgColorClass="bg-indigo-50"
+          subtitle="Registered users"
           isLoading={isStatsLoading}
+          trend={stats?.users?.growth !== undefined ? `${stats.users.growth}%` : undefined}
+          trendUp={stats?.users?.growthType !== "decrease"}
+          trendBgClass={
+            stats?.users?.growthType === "decrease"
+              ? "bg-rose-50 border border-rose-200"
+              : "bg-emerald-50 border border-emerald-200"
+          }
+          trendTextClass={
+            stats?.users?.growthType === "decrease"
+              ? "text-rose-600 font-semibold"
+              : "text-emerald-600 font-semibold"
+          }
+          comparisonText="vs last period"
         />
+
         <StatCard
-          title="Approved Chauffeurs"
-          value={approvedDrivers?.count ?? approvedDrivers?.total ?? 0}
-          metric={approvedDrivers}
+          title="Active Subscriptions"
+          value={stats?.activeSubscriptions?.total ?? 0}
+          metric={stats?.activeSubscriptions}
+          icon={CreditCard}
+          colorClass="text-emerald-700"
+          bgColorClass="bg-emerald-50"
+          subtitle="Active subscribers"
           isLoading={isStatsLoading}
+          trend={
+            stats?.activeSubscriptions?.growth !== undefined
+              ? `${stats.activeSubscriptions.growth}%`
+              : undefined
+          }
+          trendUp={stats?.activeSubscriptions?.growthType !== "decrease"}
+          trendBgClass={
+            stats?.activeSubscriptions?.growthType === "decrease"
+              ? "bg-rose-50 border border-rose-200"
+              : "bg-emerald-50 border border-emerald-200"
+          }
+          trendTextClass={
+            stats?.activeSubscriptions?.growthType === "decrease"
+              ? "text-rose-600 font-semibold"
+              : "text-emerald-600 font-semibold"
+          }
+          comparisonText="vs last period"
         />
+
         <StatCard
-          title="Pending Approval"
-          value={pendingDrivers?.count ?? pendingDrivers?.total ?? 0}
-          metric={pendingDrivers}
+          title="Pending Chauffeurs"
+          value={stats?.pendingDrivers?.total ?? 0}
+          metric={stats?.pendingDrivers}
+          icon={Clock}
+          colorClass="text-amber-700"
+          bgColorClass="bg-amber-50"
+          subtitle="Awaiting review"
           isLoading={isStatsLoading}
+          trend={
+            stats?.pendingDrivers?.growth !== undefined
+              ? `${stats.pendingDrivers.growth}%`
+              : undefined
+          }
+          trendUp={stats?.pendingDrivers?.growthType !== "decrease"}
+          trendBgClass={
+            stats?.pendingDrivers?.growthType === "decrease"
+              ? "bg-rose-50 border border-rose-200"
+              : "bg-emerald-50 border border-emerald-200"
+          }
+          trendTextClass={
+            stats?.pendingDrivers?.growthType === "decrease"
+              ? "text-rose-600 font-semibold"
+              : "text-emerald-600 font-semibold"
+          }
+          comparisonText="vs last period"
         />
+
         <StatCard
-          title="Suspended Chauffeurs"
-          value={suspendedDrivers?.count ?? suspendedDrivers?.total ?? 0}
-          metric={suspendedDrivers}
+          title="Active Jobs"
+          value={stats?.activeJobs?.total ?? 0}
+          metric={stats?.activeJobs}
+          icon={Briefcase}
+          colorClass="text-blue-700"
+          bgColorClass="bg-blue-50"
+          subtitle="Ongoing rides &amp; deliveries"
           isLoading={isStatsLoading}
+          trend={
+            stats?.activeJobs?.growth !== undefined
+              ? `${stats.activeJobs.growth}%`
+              : undefined
+          }
+          trendUp={stats?.activeJobs?.growthType !== "decrease"}
+          trendBgClass={
+            stats?.activeJobs?.growthType === "decrease"
+              ? "bg-rose-50 border border-rose-200"
+              : "bg-emerald-50 border border-emerald-200"
+          }
+          trendTextClass={
+            stats?.activeJobs?.growthType === "decrease"
+              ? "text-rose-600 font-semibold"
+              : "text-emerald-600 font-semibold"
+          }
+          comparisonText="vs last period"
+        />
+
+        <StatCard
+          title="Marketplace Items"
+          value={stats?.totalItems?.total ?? 0}
+          metric={stats?.totalItems}
+          icon={Package}
+          colorClass="text-purple-700"
+          bgColorClass="bg-purple-50"
+          subtitle="Active listings"
+          isLoading={isStatsLoading}
+          trend={
+            stats?.totalItems?.growth !== undefined
+              ? `${stats.totalItems.growth}%`
+              : undefined
+          }
+          trendUp={stats?.totalItems?.growthType !== "decrease"}
+          trendBgClass={
+            stats?.totalItems?.growthType === "decrease"
+              ? "bg-rose-50 border border-rose-200"
+              : "bg-emerald-50 border border-emerald-200"
+          }
+          trendTextClass={
+            stats?.totalItems?.growthType === "decrease"
+              ? "text-rose-600 font-semibold"
+              : "text-emerald-600 font-semibold"
+          }
+          comparisonText="vs last period"
         />
       </div>
 
@@ -208,7 +357,9 @@ const MainPage = () => {
                   <p className="text-xs text-muted-foreground mb-1">
                     Total Posted Jobs
                   </p>
-                  <h4 className="text-2xl font-bold text-foreground">00</h4>
+                  <h4 className="text-2xl font-bold text-foreground">
+                    {stats?.activeJobs?.total ?? 0}
+                  </h4>
                 </div>
                 <div className="p-3 bg-purple-100 rounded-md text-purple-600">
                   <Briefcase size={20} />
@@ -252,24 +403,26 @@ const MainPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={pieData}
+                      data={chartPieData}
                       cx="50%"
                       cy="50%"
                       innerRadius={50}
                       outerRadius={70}
-                      paddingAngle={5}
+                      paddingAngle={chartPieData.length > 1 ? 5 : 0}
                       dataKey="value"
                       stroke="none"
                       isAnimationActive={false}
                     >
-                      {pieData.map((entry, index) => (
+                      {chartPieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-bold text-foreground">00</span>
+                  <span className="text-xl font-bold text-foreground">
+                    {pieTotal}
+                  </span>
                   <span className="text-[10px] text-muted-foreground">
                     Total
                   </span>
@@ -289,7 +442,10 @@ const MainPage = () => {
                       <span className="text-muted-foreground">{item.name}</span>
                     </div>
                     <span className="font-semibold text-foreground text-xs">
-                      00 (0%)
+                      {item.value}{" "}
+                      <span className="text-muted-foreground font-normal">
+                        ({pieTotal > 0 ? Math.round((item.value / pieTotal) * 100) : 0}%)
+                      </span>
                     </span>
                   </div>
                 ))}

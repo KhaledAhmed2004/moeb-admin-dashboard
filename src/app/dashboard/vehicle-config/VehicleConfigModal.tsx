@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,16 +12,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, X, Loader2, Car, Sparkles, AlertCircle } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CustomInput } from "@/components/shared/CustomInput";
+import { CustomSelect } from "@/components/shared/CustomSelect";
+import { Plus, X, Loader2, Car, Layers } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
 import api from "@/lib/axios";
 import { VehicleConfig } from "./types";
 
@@ -29,101 +25,83 @@ interface VehicleConfigModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   config?: VehicleConfig | null; // null for Create, config for Edit
+  existingTypes?: string[]; // Types already configured in the system
 }
 
-const PRESET_VEHICLE_TYPES = [
+const VEHICLE_TYPES = [
   "Sedan",
   "SUV",
   "Van/Sprinter",
   "Stretch Limousine",
-];
-
-const PRESET_COLORS = [
-  "Black",
-  "White",
-  "Pearl White",
-  "Silver",
-  "Grey",
-  "Navy Blue",
-  "Beige",
-];
+] as const;
 
 export function VehicleConfigModal({
   isOpen,
   onOpenChange,
   config,
+  existingTypes = [],
 }: VehicleConfigModalProps) {
-  const isEdit = Boolean(config && config._id);
+  const isEdit = Boolean(config && (config._id || config.id));
   const queryClient = useQueryClient();
+  const configId = config?._id || config?.id;
 
-  const [vehicleType, setVehicleType] = useState<string>("Sedan");
-  const [customType, setCustomType] = useState<string>("");
-  const [isCustomType, setIsCustomType] = useState<boolean>(false);
-  const [maxAge, setMaxAge] = useState<number>(5);
-  const [allowedColors, setAllowedColors] = useState<string[]>(["Black"]);
-  const [colorInput, setColorInput] = useState<string>("");
+  // Filter out types that already exist in the database (when in create mode)
+  const availableVehicleTypes = React.useMemo(() => {
+    if (isEdit) return Array.from(VEHICLE_TYPES);
+    const existingLower = (existingTypes || []).map((t) => t.toLowerCase().trim());
+    const remaining = VEHICLE_TYPES.filter(
+      (t) => !existingLower.includes(t.toLowerCase().trim())
+    );
+    return remaining.length > 0 ? remaining : Array.from(VEHICLE_TYPES);
+  }, [isEdit, existingTypes]);
+
+  const [vehicleType, setVehicleType] = useState<string>(
+    availableVehicleTypes[0] || "Sedan"
+  );
   const [makesAndModels, setMakesAndModels] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState<string>("");
   const [status, setStatus] = useState<string>("ACTIVE");
 
-  useEffect(() => {
-    if (config) {
-      if (PRESET_VEHICLE_TYPES.includes(config.vehicleType)) {
-        setVehicleType(config.vehicleType);
-        setIsCustomType(false);
-        setCustomType("");
-      } else {
-        setVehicleType("custom");
-        setIsCustomType(true);
-        setCustomType(config.vehicleType || "");
+  // GET API to fetch existing configuration details when opening edit modal
+  const { data: detailResponse, isLoading: isFetchingDetail } = useQuery<{
+    success: boolean;
+    data: VehicleConfig;
+  }>({
+    queryKey: ["vehicle-config-detail", configId],
+    queryFn: async () => {
+      if (!configId) throw new Error("No config ID");
+      const res = await api.get(`/vehicle-configs/${configId}`);
+      return res.data;
+    },
+    enabled: Boolean(isOpen && isEdit && configId),
+    staleTime: 0,
+  });
+
+  // Populate form with existing configuration data from GET API or initial config
+  React.useEffect(() => {
+    if (detailResponse?.data) {
+      const fetched = detailResponse.data;
+      if (fetched.vehicleType) setVehicleType(fetched.vehicleType);
+      if (Array.isArray(fetched.makesAndModels)) {
+        setMakesAndModels(fetched.makesAndModels);
       }
-      setMaxAge(config.maxAge ?? 5);
-      setAllowedColors(config.allowedColors || ["Black"]);
+      if (fetched.status) setStatus(fetched.status);
+    }
+  }, [detailResponse]);
+
+  const [prevConfig, setPrevConfig] = useState<VehicleConfig | null | undefined>(config);
+  if (config !== prevConfig) {
+    setPrevConfig(config);
+    if (config) {
+      setVehicleType(config.vehicleType || "Sedan");
       setMakesAndModels(config.makesAndModels || []);
       setStatus(config.status || "ACTIVE");
     } else {
-      setVehicleType("Sedan");
-      setIsCustomType(false);
-      setCustomType("");
-      setMaxAge(5);
-      setAllowedColors(["Black"]);
+      setVehicleType(availableVehicleTypes[0] || "Sedan");
       setMakesAndModels([]);
       setStatus("ACTIVE");
     }
-  }, [config, isOpen]);
-
-  const handleTogglePresetColor = (color: string) => {
-    if (allowedColors.includes(color)) {
-      if (allowedColors.length === 1) {
-        toast.warning("At least one allowed color is required");
-        return;
-      }
-      setAllowedColors(allowedColors.filter((c) => c !== color));
-    } else {
-      setAllowedColors([...allowedColors, color]);
-    }
-  };
-
-  const handleAddCustomColor = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const trimmed = colorInput.trim();
-    if (!trimmed) return;
-    if (allowedColors.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-      toast.info(`Color "${trimmed}" is already in the list`);
-      setColorInput("");
-      return;
-    }
-    setAllowedColors([...allowedColors, trimmed]);
-    setColorInput("");
-  };
-
-  const handleRemoveColor = (colorToRemove: string) => {
-    if (allowedColors.length === 1) {
-      toast.warning("At least one color is required");
-      return;
-    }
-    setAllowedColors(allowedColors.filter((c) => c !== colorToRemove));
-  };
+  }
 
   const handleAddModel = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -164,30 +142,32 @@ export function VehicleConfigModal({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const finalVehicleType = isCustomType ? customType.trim() : vehicleType;
-      if (!finalVehicleType) {
+      const targetId = config?._id || config?.id;
+
+      if (!isEdit && !vehicleType) {
         throw new Error("Vehicle category type is required");
       }
-      if (!allowedColors.length) {
-        throw new Error("At least one allowed color is required");
-      }
-      if (maxAge <= 0) {
-        throw new Error("Max vehicle age must be greater than 0");
+      if (makesAndModels.length === 0) {
+        throw new Error("At least one permitted make & model is required");
       }
 
-      const payload = {
-        vehicleType: finalVehicleType,
-        maxAge: Number(maxAge),
-        allowedColors,
-        makesAndModels,
-        status,
-      };
-
-      if (isEdit && config?._id) {
-        const res = await api.patch(`/vehicle-configs/${config._id}`, payload);
+      if (isEdit && targetId) {
+        // PATCH /api/v1/vehicle-configs/:vehicleId
+        // Updatable attributes: makesAndModels, status
+        const updatePayload = {
+          makesAndModels,
+          status,
+        };
+        const res = await api.patch(`/vehicle-configs/${targetId}`, updatePayload);
         return res.data;
       } else {
-        const res = await api.post("/vehicle-configs", payload);
+        // POST /api/v1/vehicle-configs
+        const createPayload = {
+          vehicleType,
+          makesAndModels,
+          status,
+        };
+        const res = await api.post("/vehicle-configs", createPayload);
         return res.data;
       }
     },
@@ -200,12 +180,18 @@ export function VehicleConfigModal({
       );
       queryClient.invalidateQueries({ queryKey: ["vehicle-configs"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-configs-options"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-configs-stats"] });
+      if (configId) {
+        queryClient.invalidateQueries({
+          queryKey: ["vehicle-config-detail", configId],
+        });
+      }
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ message?: string }>) => {
       toast.error(
-        error?.response?.data?.message ||
-          error?.message ||
+        error.response?.data?.message ||
+          error.message ||
           "Failed to save vehicle configuration"
       );
     },
@@ -229,16 +215,24 @@ export function VehicleConfigModal({
                   : "Add Vehicle Configuration"}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                Configure fleet category rules, age threshold, color whitelist,
-                and permitted models
+                Configure standardized vehicle category and whitelisted luxury makes &amp; models
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-zinc-50/50">
-          {/* Row 1: Vehicle Type & Max Age */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {isFetchingDetail ? (
+            <div className="py-20 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="h-7 w-7 text-indigo-600 animate-spin" />
+              <p className="text-xs text-gray-500 font-medium">
+                Loading existing {config?.vehicleType || "vehicle"} configuration...
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Row 1: Vehicle Type & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-gray-700">
                 Vehicle Category / Type <span className="text-rose-500">*</span>
@@ -250,186 +244,67 @@ export function VehicleConfigModal({
                   className="bg-gray-100 text-gray-700 cursor-not-allowed font-medium text-xs h-9"
                 />
               ) : (
-                <Select
+                <CustomSelect
+                  options={availableVehicleTypes.map((type) => ({
+                    label: type,
+                    value: type,
+                  }))}
                   value={vehicleType}
-                  onValueChange={(val) => {
+                  onChange={(val) => {
                     setVehicleType(val);
-                    setIsCustomType(val === "custom");
                   }}
-                >
-                  <SelectTrigger className="h-9 text-xs bg-white">
-                    <SelectValue placeholder="Select vehicle category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRESET_VEHICLE_TYPES.map((type) => (
-                      <SelectItem key={type} value={type} className="text-xs">
-                        {type}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom" className="text-xs">
-                      + Custom Category Type
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-
-              {isCustomType && !isEdit && (
-                <Input
-                  placeholder="Enter custom category name (e.g. Electric Sedan)..."
-                  value={customType}
-                  onChange={(e) => setCustomType(e.target.value)}
-                  className="h-9 text-xs mt-1.5 bg-white"
+                  placeholder="Select vehicle category"
+                  className="w-full"
+                  triggerClassName="w-full"
                 />
               )}
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-gray-700">
-                Max Vehicle Age (Years) <span className="text-rose-500">*</span>
+                Operational Status
               </Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={maxAge}
-                  onChange={(e) => setMaxAge(Number(e.target.value))}
-                  className="h-9 text-xs bg-white pr-16"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">
-                  Years Max
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-400">
-                Permits models made &ge; {new Date().getFullYear() - (maxAge || 0)}
-              </p>
-            </div>
-          </div>
-
-          {/* Row 2: Status */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-gray-700">
-              Category Lifecycle Status
-            </Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 text-xs bg-white">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ACTIVE" className="text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    ACTIVE (Publicly visible to onboarding chauffeurs)
-                  </span>
-                </SelectItem>
-                <SelectItem value="INACTIVE" className="text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-400" />
-                    INACTIVE (Hidden from public dropdowns)
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Row 3: Allowed Colors Whitelist */}
-          <div className="space-y-2.5 p-4 rounded-xl bg-white border border-gray-200/80 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                Allowed Colors Whitelist <span className="text-rose-500">*</span>
-              </Label>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {allowedColors.length} Selected
-              </span>
-            </div>
-
-            {/* Quick Preset Selector */}
-            <div className="flex flex-wrap gap-1.5">
-              {PRESET_COLORS.map((color) => {
-                const isSelected = allowedColors.includes(color);
-                return (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => handleTogglePresetColor(color)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs font-semibold"
-                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    {isSelected ? "✓ " : "+ "}
-                    {color}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Color Input */}
-            <div className="flex items-center gap-2 pt-1">
-              <Input
-                placeholder="Add custom color (e.g. Midnight Blue)..."
-                value={colorInput}
-                onChange={(e) => setColorInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddCustomColor();
-                  }
-                }}
-                className="h-8 text-xs bg-zinc-50 border-gray-200"
+              <CustomSelect
+                options={[
+                  {
+                    label: "Active",
+                    value: "ACTIVE",
+                  },
+                  {
+                    label: "Inactive",
+                    value: "INACTIVE",
+                  },
+                ]}
+                value={status}
+                onChange={setStatus}
+                placeholder="Select status"
+                className="w-full"
+                triggerClassName="w-full"
               />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleAddCustomColor}
-                className="h-8 px-3 text-xs font-semibold rounded-lg"
-              >
-                Add Color
-              </Button>
-            </div>
-
-            {/* Selected Colors Pills */}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {allowedColors.map((color) => (
-                <span
-                  key={color}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-800 border border-zinc-200"
-                >
-                  {color}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveColor(color)}
-                    className="text-gray-400 hover:text-rose-600 ml-0.5"
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
             </div>
           </div>
 
-          {/* Row 4: Makes and Models Manager */}
-          <div className="space-y-2.5 p-4 rounded-xl bg-white border border-gray-200/80 shadow-2xs">
+          {/* Row 2: Permitted Makes & Models Catalog */}
+          <div className="space-y-3 p-4 rounded-xl bg-white border border-gray-200/80 shadow-2xs">
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  Permitted Makes & Models Catalog
+                  <Layers size={14} className="text-indigo-600" />
+                  Whitelisted Makes &amp; Models <span className="text-rose-500">*</span>
                 </Label>
                 <p className="text-[11px] text-gray-400 mt-0.5">
-                  Type a make and model (e.g. &quot;Tesla Model S Plaid&quot;) and press Enter
+                  Type make &amp; model name to add to compliant list
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
                   {makesAndModels.length} Models
                 </span>
                 {makesAndModels.length > 0 && (
                   <button
                     type="button"
                     onClick={handleClearAllModels}
-                    className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                    className="text-[11px] text-rose-600 hover:underline cursor-pointer font-medium"
                   >
                     Clear All
                   </button>
@@ -437,10 +312,10 @@ export function VehicleConfigModal({
               </div>
             </div>
 
-            {/* Add Model Input */}
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Type model name (e.g. BMW 7 Series, Tesla Model X)..."
+            {/* Manual Add Model Input */}
+            <div className="flex items-center gap-2 pt-1">
+              <CustomInput
+                placeholder="Enter model name (e.g. Mercedes-Benz S-Class) and click Add or press Enter..."
                 value={modelInput}
                 onChange={(e) => setModelInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -449,40 +324,41 @@ export function VehicleConfigModal({
                     handleAddModel();
                   }
                 }}
-                className="h-8 text-xs bg-zinc-50 border-gray-200"
+                className="h-9 text-xs bg-zinc-50 border-gray-200"
               />
               <Button
                 type="button"
                 size="sm"
                 onClick={handleAddModel}
-                className="h-8 px-3 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="h-9 px-4 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
               >
-                <Plus size={13} className="mr-1" /> Add Model
+                <Plus size={14} className="mr-1" />
+                Add
               </Button>
             </div>
 
-            {/* Models Chip Container */}
-            <div className="border border-gray-100 rounded-xl p-3 bg-zinc-50/60 max-h-48 overflow-y-auto">
+            {/* Whitelisted Models Grid / Pills */}
+            <div className="min-h-[120px] max-h-[250px] overflow-y-auto p-3 rounded-xl bg-zinc-50/80 border border-zinc-200/80">
               {makesAndModels.length === 0 ? (
-                <div className="py-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
-                  <AlertCircle size={14} />
-                  No models added yet. Add models so drivers can select them.
+                <div className="py-8 text-center text-xs text-gray-400">
+                  No models added yet. Type a model name in the input above and press Enter or Add.
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
-                  {makesAndModels.map((model, idx) => (
+                  {makesAndModels.map((model) => (
                     <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white text-zinc-800 border border-zinc-200 shadow-2xs hover:border-indigo-200 transition-colors"
+                      key={model}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-white text-gray-800 border border-gray-200 shadow-2xs"
                     >
+                      <Car size={12} className="text-indigo-600" />
                       {model}
                       <button
                         type="button"
                         onClick={() => handleRemoveModel(model)}
-                        className="text-gray-400 hover:text-rose-600 ml-1 cursor-pointer"
+                        className="text-gray-400 hover:text-rose-600 transition-colors ml-0.5 cursor-pointer"
                         title="Remove model"
                       >
-                        <X size={12} />
+                        <X size={13} />
                       </button>
                     </span>
                   ))}
@@ -490,15 +366,17 @@ export function VehicleConfigModal({
               )}
             </div>
           </div>
-        </div>
+        </>
+      )}
+    </div>
 
-        {/* Footer */}
-        <DialogFooter className="p-4 px-6 border-t bg-gray-50/70 flex flex-row items-center justify-between gap-3 w-full">
+        {/* Modal Footer */}
+        <DialogFooter className="p-4 px-6 border-t bg-white flex flex-row items-center justify-between gap-3 w-full">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="rounded-xl px-5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border-gray-200 shadow-2xs"
+            className="rounded-xl px-5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border-gray-200 shadow-2xs cursor-pointer"
           >
             Cancel
           </Button>
@@ -506,13 +384,23 @@ export function VehicleConfigModal({
           <Button
             type="button"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold px-6 shadow-xs"
+            disabled={
+              saveMutation.isPending ||
+              isFetchingDetail ||
+              makesAndModels.length === 0
+            }
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold px-6 shadow-xs cursor-pointer disabled:opacity-50"
           >
-            {saveMutation.isPending && (
-              <Loader2 size={14} className="animate-spin mr-1.5" />
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 size={14} className="animate-spin mr-1.5" />
+                Saving...
+              </>
+            ) : isEdit ? (
+              "Save Changes"
+            ) : (
+              "Create Configuration"
             )}
-            {isEdit ? "Save Configuration Changes" : "Create Vehicle Configuration"}
           </Button>
         </DialogFooter>
       </DialogContent>

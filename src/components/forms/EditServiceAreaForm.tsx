@@ -13,15 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CustomInput } from "@/components/shared/CustomInput";
+import { FormFieldWrapper } from "@/components/shared/FormFieldWrapper";
+import { CustomSelect } from "@/components/shared/CustomSelect";
+import { MapPin, Globe } from "lucide-react";
 
 interface AddServiceAreaFormInputs {
   areaName: string;
@@ -81,64 +76,71 @@ export function EditServiceAreaForm({ defaultValues, setOpen }: any) {
       <DialogHeader>
         <DialogTitle>Edit Service Area</DialogTitle>
         <DialogDescription>
-          Make changes to the service area here. Click save when you're done.
+          Make changes to the service area here. Click save when you&apos;re done.
         </DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor={`name-${defaultValues?._id}`}>Area Name</Label>
-          <Input
+        <FormFieldWrapper
+          label="Area Name"
+          htmlFor={`name-${defaultValues?._id}`}
+          required
+          error={errors.areaName?.message}
+        >
+          <CustomInput
             id={`name-${defaultValues?._id}`}
+            icon={MapPin}
             {...register("areaName", {
               required: "Area name is required",
             })}
             placeholder="Add Area name"
+            error={!!errors.areaName}
           />
-          {errors.areaName && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.areaName.message}
-            </p>
-          )}
-        </div>
+        </FormFieldWrapper>
 
-        <div className="grid gap-2">
-          <Label htmlFor={`city-${defaultValues?._id}`}>Cities (comma separated)</Label>
-          <Input
+        <FormFieldWrapper
+          label="Cities (comma separated)"
+          htmlFor={`city-${defaultValues?._id}`}
+          required
+          error={errors.city?.message}
+        >
+          <CustomInput
             id={`city-${defaultValues?._id}`}
+            icon={Globe}
             {...register("city", {
               required: "At least one city is required",
             })}
             placeholder="e.g. Dhaka, Chittagong"
+            error={!!errors.city}
           />
-          {errors.city && (
-            <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
-          )}
-        </div>
+        </FormFieldWrapper>
 
-        <div className="grid gap-2">
-          <Label htmlFor={`status-${defaultValues?._id}`}>Status</Label>
+        <FormFieldWrapper label="Status" htmlFor={`status-${defaultValues?._id}`} required>
           <Controller
             control={control}
             name="status"
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger id={`status-${defaultValues?._id}`}>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              <CustomSelect
+                options={[
+                  { label: "Active", value: "ACTIVE" },
+                  { label: "Inactive", value: "INACTIVE" },
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Select status"
+                className="w-full"
+                triggerClassName="w-full"
+              />
             )}
           />
-        </div>
+        </FormFieldWrapper>
       </div>
 
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" type="button" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
         </DialogClose>
         <Button type="submit" disabled={isPending || isSubmitting}>
           {isPending || isSubmitting ? "Saving..." : "Save changes"}

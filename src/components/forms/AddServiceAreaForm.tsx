@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CustomInput } from "@/components/shared/CustomInput";
+import { FormFieldWrapper } from "@/components/shared/FormFieldWrapper";
+import { MapPin, Globe } from "lucide-react";
+import { AxiosError } from "axios";
 
 interface AddServiceAreaFormInputs {
   areaName: string;
@@ -47,8 +49,8 @@ export function AddServiceAreaForm({
       reset();
       setOpen(false);
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to add service area");
+    onError: (error: AxiosError<{ message?: string }>) => {
+      toast.error(error.response?.data?.message || "Failed to add service area");
     },
   });
 
@@ -69,40 +71,34 @@ export function AddServiceAreaForm({
       <DialogHeader>
         <DialogTitle>Add Service Area</DialogTitle>
         <DialogDescription>
-          Fill in the details to add a new service area. Click save when you're done.
+          Fill in the details to add a new service area. Click save when you&apos;re done.
         </DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="areaName">Area Name</Label>
-          <Input
+        <FormFieldWrapper label="Area Name" htmlFor="areaName" required error={errors.areaName?.message}>
+          <CustomInput
             id="areaName"
+            icon={MapPin}
             {...register("areaName", {
               required: "Area name is required",
             })}
             placeholder="Add Area name"
+            error={!!errors.areaName}
           />
-          {errors.areaName && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.areaName.message}
-            </p>
-          )}
-        </div>
+        </FormFieldWrapper>
 
-        <div className="grid gap-2">
-          <Label htmlFor="city">Cities (comma separated)</Label>
-          <Input
+        <FormFieldWrapper label="Cities (comma separated)" htmlFor="city" required error={errors.city?.message}>
+          <CustomInput
             id="city"
+            icon={Globe}
             {...register("city", {
               required: "At least one city is required",
             })}
             placeholder="e.g. Dhaka, Chittagong"
+            error={!!errors.city}
           />
-          {errors.city && (
-            <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
-          )}
-        </div>
+        </FormFieldWrapper>
       </div>
 
       <DialogFooter>
