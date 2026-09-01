@@ -8,6 +8,7 @@ import {
   IconMapPin,
   IconMessage,
   IconNotes,
+  IconPackage,
   IconUsersGroup,
 } from "@tabler/icons-react";
 import * as React from "react";
@@ -34,7 +35,7 @@ const data = {
       icon: IconDashboard,
     },
     {
-      name: "Chauffeur Management",
+      name: "User Management",
       url: "/dashboard/chauffeur",
       icon: IconUsersGroup,
     },
@@ -49,9 +50,9 @@ const data = {
       icon: IconCalendarUser,
     },
     {
-      name: "Marketplace Management",
-      url: "/dashboard/marketplace",
-      icon: IconCalendarSearch,
+      name: "Item Management",
+      url: "/dashboard/items",
+      icon: IconPackage,
     },
     {
       name: "Support",
@@ -59,7 +60,7 @@ const data = {
       icon: IconMessage,
     },
     {
-      name: "Terms & Conditions",
+      name: "Legal Policy",
       url: "/dashboard/terms-and-condition",
       icon: IconNotes,
     },
@@ -102,9 +103,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {/* <NavMain items={data.navMain} /> */}
         <NavDocuments items={data.documents} />
-        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

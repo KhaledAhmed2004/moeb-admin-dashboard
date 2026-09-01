@@ -12,7 +12,7 @@ export default function SupportCenterPage() {
       {/* Header Section */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Support Center</h1>
-        <p className="text-sm text-muted-foreground mt-1 font-medium">We're here to help! Reach out to our support team or monitor support tickets.</p>
+        <p className="text-sm text-muted-foreground mt-1 font-medium">We&apos;re here to help! Reach out to our support team or monitor support tickets.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -20,7 +20,7 @@ export default function SupportCenterPage() {
         {/* Contact Support Card */}
         <Card className="border-0 shadow-sm bg-white rounded-xl p-6 ring-1 ring-black/5 flex flex-col">
           <h3 className="font-bold text-lg text-gray-900 mb-1">Contact Support</h3>
-          <p className="text-[13px] text-gray-500 font-medium mb-6">Can't find what you're looking for? Send us a message.</p>
+          <p className="text-[13px] text-gray-500 font-medium mb-6">Can&apos;t find what you&apos;re looking for? Send us a message.</p>
 
           <div className="flex flex-col gap-0 border border-gray-100 rounded-xl overflow-hidden">
             

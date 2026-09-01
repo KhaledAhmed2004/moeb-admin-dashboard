@@ -42,6 +42,13 @@ interface DataTableProps<TData, TValue> {
   renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   actionSlot?: React.ReactNode;
   isLoading?: boolean;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPage: number;
+  };
+  onPageChange?: (page: number) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -51,6 +58,8 @@ export function DataTable<TData, TValue>({
   renderSubComponent,
   actionSlot,
   isLoading = false,
+  pagination,
+  onPageChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -228,25 +237,52 @@ export function DataTable<TData, TValue>({
       {/* Pagination Footer */}
       <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
         <div>
-          Showing {table.getRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} category entries
+          {pagination ? (
+            <>
+              Showing {data.length} of {pagination.total} category entries (Page{" "}
+              {pagination.page} of {pagination.totalPage || 1})
+            </>
+          ) : (
+            <>
+              Showing {table.getRowModel().rows.length} of{" "}
+              {table.getFilteredRowModel().rows.length} category entries
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="h-8 text-xs rounded-xl bg-white"
+            onClick={() => {
+              if (onPageChange && pagination) {
+                onPageChange(pagination.page - 1);
+              } else {
+                table.previousPage();
+              }
+            }}
+            disabled={
+              pagination ? pagination.page <= 1 : !table.getCanPreviousPage()
+            }
+            className="h-8 text-xs rounded-xl bg-white cursor-pointer"
           >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="h-8 text-xs rounded-xl bg-white"
+            onClick={() => {
+              if (onPageChange && pagination) {
+                onPageChange(pagination.page + 1);
+              } else {
+                table.nextPage();
+              }
+            }}
+            disabled={
+              pagination
+                ? pagination.page >= pagination.totalPage
+                : !table.getCanNextPage()
+            }
+            className="h-8 text-xs rounded-xl bg-white cursor-pointer"
           >
             Next
           </Button>

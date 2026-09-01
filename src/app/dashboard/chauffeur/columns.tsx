@@ -2,9 +2,10 @@
 
 import React, { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { Eye, Pencil, Trash2, Loader2 } from "lucide-react"
+import { Eye, Pencil, Trash2, Loader2, User, Mail } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { AxiosError } from "axios"
 import api from "@/lib/axios"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -18,21 +19,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChauffeurDetailModal } from "./ChauffeurDetailModal"
+import { CustomInput } from "@/components/shared/CustomInput"
+import { CustomModal } from "@/components/shared/CustomModal"
+import { FormFieldWrapper } from "@/components/shared/FormFieldWrapper"
+import { ChauffeurDetailModal } from "./components/ChauffeurDetailModal"
 
 export interface ChauffeurStats {
   totalJobsCreated?: number;
@@ -76,7 +66,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const SubscriptionBadge = ({ subscription }: { subscription: any }) => {
+const SubscriptionBadge = ({ subscription }: { subscription: string | { status?: string; plan?: string; type?: string } | null | undefined }) => {
   let subText = "None";
   if (typeof subscription === "string") {
     subText = subscription;
@@ -104,23 +94,32 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [name, setName] = useState(chauffeur.name || "");
   const [email, setEmail] = useState(chauffeur.email || "");
-  const [status, setStatus] = useState(chauffeur.status || "PENDING");
   
   const queryClient = useQueryClient();
   const chauffeurId = chauffeur._id || chauffeur.id || "unknown";
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.delete(`/admin/users/${id}`);
-      return res.data;
+      try {
+        const res = await api.delete(`/user/${id}`);
+        return res.data;
+      } catch {
+        try {
+          const res = await api.delete(`/admin/users/${id}`);
+          return res.data;
+        } catch {
+          const res = await api.delete(`/admin/user/${id}`);
+          return res.data;
+        }
+      }
     },
-    onSuccess: () => {
-      toast.success("Chauffeur deleted successfully!");
+    onSuccess: (resData) => {
+      toast.success(resData?.message || "User deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to delete chauffeur");
+    onError: (error: AxiosError<{ message?: string }>) => {
+      toast.error(error.response?.data?.message || "Failed to delete user");
     },
   });
 
@@ -129,19 +128,17 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
       const res = await api.patch(`/admin/users/${chauffeurId}`, {
         name,
         email,
-        status,
-        appState: status,
       });
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Chauffeur profile updated successfully!");
+      toast.success("User profile updated successfully!");
       setIsEditOpen(false);
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to update chauffeur");
+    onError: (error: AxiosError<{ message?: string }>) => {
+      toast.error(error.response?.data?.message || "Failed to update user");
     },
   });
 
@@ -149,7 +146,7 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
     <div className="flex items-center justify-center gap-1">
       {/* View Details Button & Modal */}
       <button
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           setIsDetailOpen(true);
         }}
@@ -166,100 +163,74 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
         fallbackData={chauffeur}
       />
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogTrigger asChild>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setName(chauffeur.name || "");
-              setEmail(chauffeur.email || "");
-              setStatus(chauffeur.status || "PENDING");
-              setIsEditOpen(true);
-            }}
-            className="text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
-            title="Edit Chauffeur"
-          >
-            <Pencil size={15} />
-          </button>
-        </DialogTrigger>
-        <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Chauffeur</DialogTitle>
-            <DialogDescription>
-              Make changes to the chauffeur profile and status. Click save when you&apos;re done.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor={`name-${chauffeurId}`}>Full Name</Label>
-              <Input
-                id={`name-${chauffeurId}`}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor={`email-${chauffeurId}`}>Email</Label>
-              <Input
-                id={`email-${chauffeurId}`}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor={`status-${chauffeurId}`}>Account Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="APPROVED">Approved</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              type="button"
-              onClick={() => updateMutation.mutate()}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
-              Save changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Chauffeur Trigger Button & CustomModal */}
+      <button
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          setName(chauffeur.name || "");
+          setEmail(chauffeur.email || "");
+          setIsEditOpen(true);
+        }}
+        className="text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
+        title="Edit User"
+      >
+        <Pencil size={15} />
+      </button>
+
+      <CustomModal
+        isOpen={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit User Profile"
+        description="Make changes to the user profile details. Click save when you're done."
+        size="md"
+        submitLabel="Save Changes"
+        onSubmit={() => updateMutation.mutate()}
+        isSubmitting={updateMutation.isPending}
+      >
+        <div className="space-y-4">
+          <FormFieldWrapper label="Full Name" htmlFor={`name-${chauffeurId}`} required>
+            <CustomInput
+              id={`name-${chauffeurId}`}
+              icon={User}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </FormFieldWrapper>
+
+          <FormFieldWrapper label="Email Address" htmlFor={`email-${chauffeurId}`} required>
+            <CustomInput
+              id={`email-${chauffeurId}`}
+              icon={Mail}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </FormFieldWrapper>
+        </div>
+      </CustomModal>
 
       {/* Delete Dialog */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <button
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             className="text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
-            title="Delete Chauffeur"
+            title="Delete User"
             disabled={deleteMutation.isPending}
           >
             <Trash2 size={15} />
           </button>
         </AlertDialogTrigger>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the chauffeur account and associated records.
+              This action cannot be undone. This will permanently delete the user account and associated records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 text-white hover:bg-destructive/90"
+              className="bg-red-600 text-white hover:bg-destructive/90 cursor-pointer"
               onClick={() => deleteMutation.mutate(chauffeurId)}
             >
               {deleteMutation.isPending ? (
