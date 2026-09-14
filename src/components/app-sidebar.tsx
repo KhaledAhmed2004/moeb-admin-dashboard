@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  IconCalendarSearch,
   IconCalendarUser,
   IconCar,
+  IconCreditCard,
   IconDashboard,
   IconMapPin,
   IconMessage,
@@ -40,6 +40,11 @@ const data = {
       icon: IconUsersGroup,
     },
     {
+      name: "Subscriptions",
+      url: "/dashboard/subscriptions",
+      icon: IconCreditCard,
+    },
+    {
       name: "Vehicle Configurations",
       url: "/dashboard/vehicle-config",
       icon: IconCar,
@@ -73,7 +78,7 @@ const data = {
   user: {
     name: "Admin",
     email: "admin@ekkali.com",
-    avatar: "https://i.ibb.co.com/VWkMFBWM/pngtree-user-icon-png-image-1796659.jpg",
+    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop",
   }
 };
 

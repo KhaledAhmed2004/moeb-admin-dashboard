@@ -186,7 +186,10 @@ export default function ChangePasswordPage() {
 
       {/* Back Link */}
       <div className="text-center mt-6">
-        <Link href="/auth/login" className="text-blue-500 group text-sm font-normal">
+        <Link
+          href="/auth/login"
+          className="text-blue-500 group text-sm font-normal"
+        >
           <span className="text-light-black ">Back to</span>{" "}
           <span className="underline group-hover:no-underline">LOG IN</span>
         </Link>

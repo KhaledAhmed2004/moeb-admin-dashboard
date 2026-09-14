@@ -117,6 +117,7 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
       toast.success(resData?.message || "User deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats"] });
     },
     onError: (error: AxiosError<{ message?: string }>) => {
       toast.error(error.response?.data?.message || "Failed to delete user");
@@ -136,6 +137,7 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
       setIsEditOpen(false);
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats"] });
     },
     onError: (error: AxiosError<{ message?: string }>) => {
       toast.error(error.response?.data?.message || "Failed to update user");

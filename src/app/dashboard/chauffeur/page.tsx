@@ -2,25 +2,89 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Users, CheckCircle2, Clock, Ban } from "lucide-react";
-import { toast } from "sonner";
+import { Users, CheckCircle2, Clock, Ban } from "lucide-react";
 import api from "@/lib/axios";
 import { DataTable } from "./data-table";
 import { getColumns, Chauffeur } from "./columns";
 import { CustomTabs, TabOption } from "@/components/shared/CustomTabs";
-import { StatCard, DriverStatsData } from "@/components/shared/StatCard";
+import { StatCard, MetricStat } from "@/components/shared/StatCard";
+
+function extractMetric(data: unknown, ...keys: string[]): MetricStat {
+  if (!data || typeof data !== "object") {
+    return { count: 0, total: 0, growth: 0, growthType: "no_change" };
+  }
+
+  const record = data as Record<string, unknown>;
+  for (const key of keys) {
+    const val = record[key];
+    if (val !== undefined && val !== null) {
+      if (typeof val === "number") {
+        return {
+          count: val,
+          total: val,
+          growth: 0,
+          growthType: "no_change",
+        };
+      }
+      if (typeof val === "object") {
+        const obj = val as Record<string, unknown>;
+        const count =
+          typeof obj.count === "number"
+            ? obj.count
+            : typeof obj.total === "number"
+            ? obj.total
+            : typeof obj.thisPeriodCount === "number"
+            ? obj.thisPeriodCount
+            : 0;
+        const growth = typeof obj.growth === "number" ? obj.growth : 0;
+        const growthType =
+          typeof obj.growthType === "string"
+            ? obj.growthType
+            : growth > 0
+            ? "positive"
+            : growth < 0
+            ? "negative"
+            : "no_change";
+        return {
+          count,
+          total: count,
+          growth,
+          growthType,
+        };
+      }
+    }
+  }
+
+  return { count: 0, total: 0, growth: 0, growthType: "no_change" };
+}
 
 export default function ChauffeurManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
 
+  // Fetch Users Statistics: GET /api/v1/users/stats
   const { data: statsData, isLoading: isStatsLoading } = useQuery({
-    queryKey: ["admin-chauffeur-stats"],
+    queryKey: ["users-stats"],
     queryFn: async () => {
-      const response = await api.get("/admin/chauffeur-stats");
-      return response.data?.data as DriverStatsData;
+      try {
+        const response = await api.get("/users/stats");
+        return response.data?.data ?? response.data;
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { status?: number } };
+        if (axiosErr.response?.status === 404) {
+          try {
+            const fallback = await api.get("/user/stats");
+            return fallback.data?.data ?? fallback.data;
+          } catch {
+            const adminFallback = await api.get("/admin/chauffeur-stats");
+            return adminFallback.data?.data ?? adminFallback.data;
+          }
+        }
+        throw err;
+      }
     },
+    refetchInterval: 30000,
   });
 
   const { data: applicationsResult, isLoading: isApplicationsLoading } =
@@ -88,22 +152,62 @@ export default function ChauffeurManagementPage() {
   const applications = applicationsResult?.items || [];
   const pagination = applicationsResult?.pagination;
 
-  const totalDrivers = statsData?.totalChauffeurs ?? statsData?.totalDrivers;
-  const pendingDrivers =
-    statsData?.pendingChauffeurs ?? statsData?.pendingDrivers;
-  const suspendedDrivers =
-    statsData?.suspendedChauffeurs ?? statsData?.suspendedDrivers;
-  const approvedDrivers = statsData?.approvedChauffeurs ??
-    statsData?.approvedDrivers ?? {
-    count: Math.max(
-      0,
-      (totalDrivers?.count ?? totalDrivers?.total ?? 0) -
-      (pendingDrivers?.count ?? pendingDrivers?.total ?? 0) -
-      (suspendedDrivers?.count ?? suspendedDrivers?.total ?? 0),
-    ),
-    growth: 0,
-    growthType: "no_change",
-  };
+  const totalUsers = extractMetric(
+    statsData,
+    "totalUsers",
+    "total",
+    "totalDrivers",
+    "totalChauffeurs",
+    "users"
+  );
+  const pendingDrivers = extractMetric(
+    statsData,
+    "pendingApproval",
+    "pendingUsers",
+    "pendingDrivers",
+    "pendingChauffeurs",
+    "pending"
+  );
+  const suspendedDrivers = extractMetric(
+    statsData,
+    "suspendedUsers",
+    "suspendedDrivers",
+    "suspendedChauffeurs",
+    "suspended"
+  );
+
+  const statsRecord = statsData as Record<string, unknown> | undefined;
+  const hasExplicitApproved =
+    statsRecord &&
+    (statsRecord.approvedUsers !== undefined ||
+      statsRecord.approved !== undefined ||
+      statsRecord.approvedDrivers !== undefined ||
+      statsRecord.approvedChauffeurs !== undefined);
+
+  const approvedDrivers: MetricStat = hasExplicitApproved
+    ? extractMetric(
+        statsData,
+        "approvedUsers",
+        "approved",
+        "approvedDrivers",
+        "approvedChauffeurs"
+      )
+    : {
+        count: Math.max(
+          0,
+          (totalUsers.count ?? 0) -
+            (pendingDrivers.count ?? 0) -
+            (suspendedDrivers.count ?? 0)
+        ),
+        total: Math.max(
+          0,
+          (totalUsers.count ?? 0) -
+            (pendingDrivers.count ?? 0) -
+            (suspendedDrivers.count ?? 0)
+        ),
+        growth: 0,
+        growthType: "no_change",
+      };
 
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);
@@ -111,19 +215,16 @@ export default function ChauffeurManagementPage() {
   };
 
   const allCount =
-    totalDrivers?.count ?? totalDrivers?.total ?? (statusFilter === "ALL" ? pagination?.total ?? applications.length : 0);
+    totalUsers.count ?? (statusFilter === "ALL" ? pagination?.total ?? applications.length : 0);
   const pendingCount =
-    pendingDrivers?.count ??
-    pendingDrivers?.total ??
+    pendingDrivers.count ??
     (statusFilter === "PENDING" ? pagination?.total ?? applications.length : 0);
   const approvedCount =
-    approvedDrivers?.count ??
-    approvedDrivers?.total ??
+    approvedDrivers.count ??
     (statusFilter === "APPROVED" ? pagination?.total ?? applications.length : 0);
   const suspendedCount =
-    suspendedDrivers?.count ??
-    suspendedDrivers?.total ??
-    (statusFilter === "SUSPENDED" ? pagination?.total ?? applications.length : 0);
+    suspendedDrivers.count ??
+    (statusFilter === "SUSPENDED" ? pagination?.total ?? applications.length : 0);;
 
   const tabOptions: TabOption[] = React.useMemo(
     () => [
@@ -159,44 +260,6 @@ export default function ChauffeurManagementPage() {
     [allCount, pendingCount, approvedCount, suspendedCount]
   );
 
-  const handleExportCSV = async () => {
-    if (!applications.length) {
-      toast.error("No data to export");
-      return;
-    }
-    const headers = [
-      "Name",
-      "Email",
-      "Phone",
-      "Status",
-      "Subscription",
-      "Role",
-      "Joined Date",
-      "Completed Trips",
-    ];
-    const rows = applications.map((app) => [
-      `"${app.name || ""}"`,
-      `"${app.email || ""}"`,
-      `"${app.phone || ""}"`,
-      `"${app.status || ""}"`,
-      `"${app.companyRole || "Chauffeur"}"`,
-      `"${app.createdAt ? new Date(app.createdAt).toLocaleDateString() : app.joined || ""}"`,
-      `"${app.stats?.totalJobsCompleted ?? app.trips ?? 0}"`,
-    ]);
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((r) => r.join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `users_export_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("User data exported successfully!");
-  };
-
   return (
     <div className="p-6 lg:p-8 space-y-6 bg-background">
       {/* Header Section */}
@@ -210,42 +273,44 @@ export default function ChauffeurManagementPage() {
             accounts
           </p>
         </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-xs cursor-pointer"
-          >
-            <Download size={15} />
-            Export CSV
-          </button>
-        </div>
       </div>
 
       {/* Pure Metric Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
-          value={totalDrivers?.count ?? totalDrivers?.total ?? 0}
-          metric={totalDrivers}
+          value={totalUsers?.count ?? totalUsers?.total ?? 0}
+          metric={totalUsers}
+          icon={Users}
+          colorClass="text-indigo-600"
+          bgColorClass="bg-indigo-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Approved Users"
           value={approvedDrivers?.count ?? approvedDrivers?.total ?? 0}
           metric={approvedDrivers}
+          icon={CheckCircle2}
+          colorClass="text-emerald-600"
+          bgColorClass="bg-emerald-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Pending Approval"
           value={pendingDrivers?.count ?? pendingDrivers?.total ?? 0}
           metric={pendingDrivers}
+          icon={Clock}
+          colorClass="text-amber-600"
+          bgColorClass="bg-amber-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Suspended Users"
           value={suspendedDrivers?.count ?? suspendedDrivers?.total ?? 0}
           metric={suspendedDrivers}
+          icon={Ban}
+          colorClass="text-rose-600"
+          bgColorClass="bg-rose-50"
           isLoading={isStatsLoading}
         />
       </div>
