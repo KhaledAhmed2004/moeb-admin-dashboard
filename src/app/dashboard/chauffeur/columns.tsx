@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { Eye, Pencil, Trash2, Loader2, User, Mail } from "lucide-react"
+import { Eye, Pencil, Trash2, Loader2, User, Mail, Gift, Crown } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AxiosError } from "axios"
@@ -23,6 +23,7 @@ import { CustomInput } from "@/components/shared/CustomInput"
 import { CustomModal } from "@/components/shared/CustomModal"
 import { FormFieldWrapper } from "@/components/shared/FormFieldWrapper"
 import { ChauffeurDetailModal } from "./components/ChauffeurDetailModal"
+import { GrantFreeSubscriptionModal } from "./components/GrantFreeSubscriptionModal"
 
 export interface ChauffeurStats {
   totalJobsCreated?: number;
@@ -41,7 +42,21 @@ export interface Chauffeur {
   profile?: string;
   profilePicture?: string;
   companyRole?: string;
-  subscription?: string | { status?: string; plan?: string; type?: string } | null;
+  subscription?:
+    | string
+    | {
+        status?: string;
+        plan?: string;
+        type?: string;
+        isPremium?: boolean;
+        platform?: string;
+        expiresAt?: string | null;
+        metadata?: {
+          isComplimentary?: boolean;
+          durationDays?: number | string;
+        };
+      }
+    | null;
   stats?: ChauffeurStats;
   joined?: string;
   createdAt?: string;
@@ -66,7 +81,34 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const SubscriptionBadge = ({ subscription }: { subscription: string | { status?: string; plan?: string; type?: string } | null | undefined }) => {
+const SubscriptionBadge = ({ subscription }: { subscription: Chauffeur["subscription"] }) => {
+  if (typeof subscription === "object" && subscription) {
+    const isComp =
+      subscription.metadata?.isComplimentary || subscription.platform === "admin";
+    const isLifetime =
+      subscription.metadata?.durationDays === "lifetime" ||
+      (isComp && subscription.expiresAt === null) ||
+      (subscription.isPremium && subscription.expiresAt === null);
+
+    if (isLifetime) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 ring-1 ring-amber-300">
+          <Crown size={12} className="text-amber-600" />
+          Lifetime Free
+        </span>
+      );
+    }
+
+    if (isComp) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 ring-1 ring-purple-200">
+          <Gift size={11} className="text-purple-600" />
+          Complimentary
+        </span>
+      );
+    }
+  }
+
   let subText = "None";
   if (typeof subscription === "string") {
     subText = subscription;
@@ -92,6 +134,7 @@ const SubscriptionBadge = ({ subscription }: { subscription: string | { status?:
 const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [name, setName] = useState(chauffeur.name || "");
   const [email, setEmail] = useState(chauffeur.email || "");
   
@@ -209,6 +252,27 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
           </FormFieldWrapper>
         </div>
       </CustomModal>
+
+      {/* Free Subscription / Complimentary Access Button & Modal */}
+      <button
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          setIsSubModalOpen(true);
+        }}
+        className="text-zinc-400 hover:text-purple-600 hover:bg-purple-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
+        title="Manage Complimentary Subscription"
+      >
+        <Gift size={15} />
+      </button>
+
+      <GrantFreeSubscriptionModal
+        userId={chauffeur._id || chauffeur.id || null}
+        userName={chauffeur.name}
+        userEmail={chauffeur.email}
+        currentSubscription={chauffeur.subscription}
+        isOpen={isSubModalOpen}
+        onOpenChange={setIsSubModalOpen}
+      />
 
       {/* Delete Dialog */}
       <AlertDialog>

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Phone, ShieldCheck, Loader2, CheckCircle2, Ban, Clock } from "lucide-react";
+import { Mail, Phone, ShieldCheck, Loader2, CheckCircle2, Ban, Clock, Gift } from "lucide-react";
 import {
   ApplicationDetailsData,
   ApplicationUserDetails,
@@ -29,6 +29,7 @@ import { ChauffeurVehiclesTab } from "./details-tabs/ChauffeurVehiclesTab";
 import { ChauffeurDocumentsTab } from "./details-tabs/ChauffeurDocumentsTab";
 import { ChauffeurServiceAreaTab } from "./details-tabs/ChauffeurServiceAreaTab";
 import { FilePreviewModal } from "./details-tabs/FilePreviewModal";
+import { GrantFreeSubscriptionModal } from "./GrantFreeSubscriptionModal";
 import { CustomModal } from "@/components/shared/CustomModal";
 
 export function ChauffeurDetailModal({
@@ -38,6 +39,7 @@ export function ChauffeurDetailModal({
   fallbackData,
 }: ChauffeurDetailModalProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [isBatchApproving, setIsBatchApproving] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -756,36 +758,51 @@ export function ChauffeurDetailModal({
             ) : (
               <>
                 {/* Profile Hero Banner */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-xs">
-                  <Avatar className="h-16 w-16 ring-2 ring-primary/10 shadow-sm flex-shrink-0">
-                    {profilePicture && <AvatarImage src={profilePicture} alt={name} className="object-cover" />}
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                      {initial}
-                    </AvatarFallback>
-                  </Avatar>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-xs">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <Avatar className="h-16 w-16 ring-2 ring-primary/10 shadow-sm flex-shrink-0">
+                      {profilePicture && <AvatarImage src={profilePicture} alt={name} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                        {initial}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg text-gray-900 truncate">{name}</h3>
-                      {getStatusBadge(appState)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-lg text-gray-900 truncate">{name}</h3>
+                        {getStatusBadge(appState)}
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium mt-1 font-mono">
+                        ID: <span className="text-gray-700">{userId || "—"}</span>
+                      </p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-600 flex-wrap">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Mail size={13} className="text-gray-400" />
+                          {email}
+                        </span>
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Phone size={13} className="text-gray-400" />
+                          {phone}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                          <ShieldCheck size={12} className="text-emerald-600" />
+                          Identity: {accountState === "VERIFIED" ? "Verified" : accountState}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 font-medium mt-1 font-mono">
-                      ID: <span className="text-gray-700">{userId || "—"}</span>
-                    </p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-600 flex-wrap">
-                      <span className="flex items-center gap-1.5 truncate">
-                        <Mail size={13} className="text-gray-400" />
-                        {email}
-                      </span>
-                      <span className="flex items-center gap-1.5 truncate">
-                        <Phone size={13} className="text-gray-400" />
-                        {phone}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/70">
-                        <ShieldCheck size={12} className="text-emerald-600" />
-                        Identity: {accountState === "VERIFIED" ? "Verified" : accountState}
-                      </span>
-                    </div>
+                  </div>
+
+                  <div className="flex sm:flex-col items-start sm:items-end gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsSubscriptionModalOpen(true)}
+                      className="h-8 text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50 hover:text-purple-800 gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Gift size={13} className="text-purple-600" />
+                      Manage Free Access
+                    </Button>
                   </div>
                 </div>
 
@@ -1157,6 +1174,20 @@ export function ChauffeurDetailModal({
       <FilePreviewModal
         previewFile={previewFile}
         onOpenChange={(open) => setPreviewFile((prev) => ({ ...prev, isOpen: open }))}
+      />
+
+      {/* Grant/Revoke Free Subscription Modal */}
+      <GrantFreeSubscriptionModal
+        userId={userId}
+        userName={name}
+        userEmail={email}
+        currentSubscription={
+          (data?.subscription as unknown) ||
+          (user as { subscription?: unknown })?.subscription ||
+          fallbackData?.subscription
+        }
+        isOpen={isSubscriptionModalOpen}
+        onOpenChange={setIsSubscriptionModalOpen}
       />
     </>
   );
