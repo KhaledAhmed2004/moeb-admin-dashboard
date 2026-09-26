@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  IconBriefcase,
   IconCalendarUser,
   IconCar,
   IconCreditCard,
@@ -40,6 +41,11 @@ const data = {
       icon: IconUsersGroup,
     },
     {
+      name: "Job Management",
+      url: "/dashboard/jobs",
+      icon: IconBriefcase,
+    },
+    {
       name: "Subscriptions",
       url: "/dashboard/subscriptions",
       icon: IconCreditCard,
@@ -49,11 +55,11 @@ const data = {
       url: "/dashboard/vehicle-config",
       icon: IconCar,
     },
-    {
-      name: "Deals Management",
-      url: "/dashboard/deals",
-      icon: IconCalendarUser,
-    },
+    // {
+    //   name: "Deals Management",
+    //   url: "/dashboard/deals",
+    //   icon: IconCalendarUser,
+    // },
     {
       name: "Item Management",
       url: "/dashboard/items",

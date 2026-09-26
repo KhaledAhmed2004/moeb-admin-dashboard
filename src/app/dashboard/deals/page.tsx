@@ -136,63 +136,43 @@ export default function DealsManagementPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6">
         <StatCard
           title="Total Deals"
-          value="1,248"
-          subtitle="All time deals"
-          icon={Handshake}
-          colorClass="text-purple-600"
-          bgColorClass="bg-purple-100"
-          trend="12.5%"
-          trendUp={true}
-          trendBgClass="bg-green-50"
-          trendTextClass="text-green-600"
+          value={1248}
+          metric={{
+            growth: 12.5,
+            growthType: "positive"
+          }}
         />
         <StatCard
           title="Active Deals"
-          value="842"
-          subtitle="Currently active"
-          icon={CalendarCheck}
-          colorClass="text-green-600"
-          bgColorClass="bg-green-100"
-          trend="8.7%"
-          trendUp={true}
-          trendBgClass="bg-green-50"
-          trendTextClass="text-green-600"
+          value={842}
+          metric={{
+            growth: 8.7,
+            growthType: "positive"
+          }}
         />
         <StatCard
           title="Pending Deals"
-          value="213"
-          subtitle="Awaiting approval"
-          icon={Clock}
-          colorClass="text-orange-500"
-          bgColorClass="bg-orange-100"
-          trend="3.2%"
-          trendUp={true}
-          trendBgClass="bg-orange-50"
-          trendTextClass="text-orange-600"
+          value={213}
+          metric={{
+            growth: 3.2,
+            growthType: "positive"
+          }}
         />
         <StatCard
           title="Completed Deals"
-          value="1,035"
-          subtitle="Successfully completed"
-          icon={CheckCircle2}
-          colorClass="text-blue-600"
-          bgColorClass="bg-blue-100"
-          trend="15.4%"
-          trendUp={true}
-          trendBgClass="bg-green-50"
-          trendTextClass="text-green-600"
+          value={1035}
+          metric={{
+            growth: 15.4,
+            growthType: "positive"
+          }}
         />
         <StatCard
           title="Cancelled Deals"
-          value="106"
-          subtitle="This month"
-          icon={XCircle}
-          colorClass="text-red-500"
-          bgColorClass="bg-red-100"
-          trend="4.1%"
-          trendUp={false}
-          trendBgClass="bg-red-50"
-          trendTextClass="text-red-600"
+          value={106}
+          metric={{
+            growth: 4.1,
+            growthType: "negative"
+          }}
         />
       </div>
 

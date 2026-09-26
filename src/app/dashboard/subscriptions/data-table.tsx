@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   ColumnDef,
   flexRender,
@@ -74,7 +73,7 @@ export function SubscriptionDataTable<TData, TValue>({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -87,7 +86,10 @@ export function SubscriptionDataTable<TData, TValue>({
               Array.from({ length: 6 }).map((_, index) => (
                 <TableRow key={`skeleton-${index}`}>
                   {columns.map((_, colIndex) => (
-                    <TableCell key={`cell-${index}-${colIndex}`} className="px-4 py-3.5">
+                    <TableCell
+                      key={`cell-${index}-${colIndex}`}
+                      className="px-4 py-3.5"
+                    >
                       <Skeleton className="h-5 w-full rounded-md" />
                     </TableCell>
                   ))}
@@ -103,7 +105,7 @@ export function SubscriptionDataTable<TData, TValue>({
                     <TableCell key={cell.id} className="px-4 py-3 text-xs">
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -119,9 +121,12 @@ export function SubscriptionDataTable<TData, TValue>({
                     <div className="p-3 bg-zinc-100 rounded-full text-zinc-400">
                       <Inbox className="w-6 h-6" />
                     </div>
-                    <p className="text-zinc-600 font-semibold">{emptyMessage}</p>
+                    <p className="text-zinc-600 font-semibold">
+                      {emptyMessage}
+                    </p>
                     <p className="text-[11px] text-zinc-400 max-w-sm">
-                      Try selecting a different filter or search query to find subscription records.
+                      Try selecting a different filter or search query to find
+                      subscription records.
                     </p>
                   </div>
                 </TableCell>
@@ -135,8 +140,10 @@ export function SubscriptionDataTable<TData, TValue>({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500 px-1">
         <div className="flex items-center gap-2">
           <span>
-            Showing <strong className="text-zinc-900 font-bold">{data.length}</strong> of{" "}
-            <strong className="text-zinc-900 font-bold">{totalItems}</strong> subscribers
+            Showing{" "}
+            <strong className="text-zinc-900 font-bold">{data.length}</strong>{" "}
+            of <strong className="text-zinc-900 font-bold">{totalItems}</strong>{" "}
+            subscribers
           </span>
           {onLimitChange && (
             <div className="flex items-center gap-1.5 ml-4">

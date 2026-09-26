@@ -40,6 +40,7 @@ export interface UpdateItemPayload {
 
 export interface ItemStatMetric {
   total: number;
+  count?: number;
   thisPeriodCount?: number;
   lastPeriodCount?: number;
   growth: number;

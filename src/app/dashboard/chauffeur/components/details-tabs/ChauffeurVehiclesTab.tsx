@@ -51,10 +51,10 @@ export function ChauffeurVehiclesTab({
   return (
     <div className="space-y-4">
       {/* Vehicle Selection Toolbar */}
-      <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-gray-50/80 border border-gray-200/80 flex-wrap">
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80 flex-wrap">
         <div className="flex items-center gap-3">
           <div
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-3 cursor-pointer select-none"
             onClick={handleSelectAllVehicles}
           >
             <Checkbox
@@ -75,6 +75,22 @@ export function ChauffeurVehiclesTab({
               {selectedVehicleIds.length} Selected
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => handleOpenRejectVehiclesModal()}
+            disabled={isApproving || isRejecting || selectedVehicleIds.length === 0}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 hover:border-rose-300 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRejecting ? "Rejecting..." : selectedVehicleIds.length > 1 ? `Reject Selected (${selectedVehicleIds.length})` : "Reject Vehicle"}
+          </button>
+          <button
+            onClick={() => handleApproveVehicles()}
+            disabled={isApproving || isRejecting || selectedVehicleIds.length === 0}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isApproving ? "Approving..." : selectedVehicleIds.length > 1 ? `Approve Selected (${selectedVehicleIds.length})` : "Approve Vehicle"}
+          </button>
         </div>
       </div>
 
@@ -107,61 +123,56 @@ export function ChauffeurVehiclesTab({
                 <Checkbox
                   checked={isChecked}
                   onCheckedChange={() => handleToggleVehicleSelect(vKey)}
-                  className="mt-0.5 cursor-pointer"
+                  className="cursor-pointer shrink-0"
                 />
 
                 <div className="p-2.5 rounded-xl bg-purple-50 text-purple-700">
                   <Car size={20} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-bold text-base text-gray-900">
-                      {v.makeAndModel || "Unknown Vehicle"} ({v.year || "—"})
-                    </h4>
-                    <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700">
+                  <h4 className="font-bold text-base text-gray-900">
+                    {v.makeAndModel || "Unknown Vehicle"} ({v.year || "—"})
+                  </h4>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs">
+                    <span className="font-semibold text-gray-500">
                       {v.type || "Sedan"}
                     </span>
-                    {getStatusBadge(
-                      v.status ||
-                        (v as { approvalStatus?: string }).approvalStatus ||
-                        (v as { vehicleStatus?: string }).vehicleStatus ||
-                        "PENDING_REVIEW"
-                    )}
-                    {isSelected && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 ring-1 ring-purple-300">
-                        ★ Active Vehicle
-                      </span>
-                    )}
+                    <span className="text-gray-300">•</span>
+                    <span className="text-gray-400 font-mono">
+                      Added: {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : "—"}
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-400 font-mono mt-0.5">
-                    ID: {v._id || (v as { id?: string }).id || `#${idx + 1}`} • Added:{" "}
-                    {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : "—"}
-                  </p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap ml-9 sm:ml-0">
+                {getStatusBadge(
+                  v.status ||
+                    (v as { approvalStatus?: string }).approvalStatus ||
+                    (v as { vehicleStatus?: string }).vehicleStatus ||
+                    "PENDING_REVIEW"
+                )}
+                {isSelected && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 ring-1 ring-purple-300">
+                    Active Vehicle
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Vehicle Spec Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-3 gap-3 text-xs">
               <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-100">
                 <span className="text-gray-400 uppercase font-semibold text-[10px]">License Plate</span>
                 <p className="font-bold text-gray-900 mt-0.5">{v.licensePlate || v.licensePlateRaw || "N/A"}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-100">
-                <span className="text-gray-400 uppercase font-semibold text-[10px]">Outside Color</span>
+                <span className="text-gray-400 uppercase font-semibold text-[10px]">Exterior</span>
                 <p className="font-bold text-gray-900 mt-0.5">{v.colorOutside || "N/A"}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-100">
-                <span className="text-gray-400 uppercase font-semibold text-[10px]">Inside Color</span>
+                <span className="text-gray-400 uppercase font-semibold text-[10px]">Interior</span>
                 <p className="font-bold text-gray-900 mt-0.5">{v.colorInside || "N/A"}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-100">
-                <span className="text-gray-400 uppercase font-semibold text-[10px]">Registration Expiry</span>
-                <p className="font-bold text-gray-900 mt-0.5">
-                  {v.vehicleRegistration?.expiryDate
-                    ? new Date(v.vehicleRegistration.expiryDate).toLocaleDateString()
-                    : "N/A"}
-                </p>
               </div>
             </div>
 
@@ -177,15 +188,6 @@ export function ChauffeurVehiclesTab({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="font-bold text-gray-900 text-xs">Commercial Insurance</p>
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            isPdf
-                              ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                              : "bg-blue-100 text-blue-700 ring-1 ring-blue-200"
-                          }`}
-                        >
-                          {isPdf ? "PDF" : "IMAGE"}
-                        </span>
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         Expires:{" "}
@@ -209,15 +211,6 @@ export function ChauffeurVehiclesTab({
                         >
                           <Eye size={12} /> Preview
                         </button>
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-                          title="Open in new tab"
-                        >
-                          <ExternalLink size={13} />
-                        </a>
                       </div>
                     )}
                   </div>
@@ -234,15 +227,6 @@ export function ChauffeurVehiclesTab({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="font-bold text-gray-900 text-xs">Registration Document</p>
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            isPdf
-                              ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                              : "bg-blue-100 text-blue-700 ring-1 ring-blue-200"
-                          }`}
-                        >
-                          {isPdf ? "PDF" : "IMAGE"}
-                        </span>
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         Expires:{" "}
@@ -266,15 +250,6 @@ export function ChauffeurVehiclesTab({
                         >
                           <Eye size={12} /> Preview
                         </button>
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-                          title="Open in new tab"
-                        >
-                          <ExternalLink size={13} />
-                        </a>
                       </div>
                     )}
                   </div>

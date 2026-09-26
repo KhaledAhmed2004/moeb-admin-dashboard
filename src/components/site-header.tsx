@@ -25,7 +25,7 @@ const routeConfig: Record<string, { title: string }> = {
   "/dashboard": { title: "Dashboard" },
   "/dashboard/chauffeur": { title: "User Management" },
   "/dashboard/vehicle-config": { title: "Vehicle Configurations" },
-  "/dashboard/deals": { title: "Deals Management" },
+  // "/dashboard/deals": { title: "Deals Management" },
   "/dashboard/items": { title: "Item Management" },
   "/dashboard/support": { title: "Support" },
   "/dashboard/terms-and-condition": { title: "Legal Policy" },

@@ -92,13 +92,19 @@ export interface ApplicationUserDetails {
   selectedVehicle?: string;
   averageRating?: number;
   totalReviews?: number;
+  isOnboard?: boolean;
   paymentMethods?: {
+    zelle?: { email?: string };
+    venmo?: { username?: string };
+    cashApp?: { cashtag?: string };
     cardPayment?: {
       status?: string;
     };
   };
   loginAttempts?: number;
   lockUntil?: string | null;
+  badge?: string;
+  badges?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -127,4 +133,6 @@ export interface PreviewFileState {
   title: string;
   url: string;
   isPdf: boolean;
+  documentId?: string;
+  status?: string;
 }

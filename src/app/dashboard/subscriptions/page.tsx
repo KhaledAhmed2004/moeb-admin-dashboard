@@ -1,19 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import {
-  CreditCard,
-  Users,
-  CheckCircle2,
-  Clock,
-  Ban,
-  Search,
-  RotateCw,
-  Layers,
-} from "lucide-react";
+import  { useState, useMemo } from "react";
+import { Users, CheckCircle2, Clock, Ban, Search, Layers } from "lucide-react";
 import { StatCard, MetricStat } from "@/components/shared/StatCard";
 import { CustomTabs, TabOption } from "@/components/shared/CustomTabs";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,7 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSubscriptionStats, useSubscriptions } from "@/hooks/useSubscriptions";
+import {
+  useSubscriptionStats,
+  useSubscriptions,
+} from "@/hooks/useSubscriptions";
 import { ISubscriberItem } from "@/types/subscription";
 import { getSubscriptionColumns } from "./columns";
 import { SubscriptionDataTable } from "./data-table";
@@ -51,19 +45,19 @@ function extractMetric(data: unknown, ...keys: string[]): MetricStat {
           typeof obj.count === "number"
             ? obj.count
             : typeof obj.total === "number"
-            ? obj.total
-            : typeof obj.thisPeriodCount === "number"
-            ? obj.thisPeriodCount
-            : 0;
+              ? obj.total
+              : typeof obj.thisPeriodCount === "number"
+                ? obj.thisPeriodCount
+                : 0;
         const growth = typeof obj.growth === "number" ? obj.growth : 0;
         const growthType =
           typeof obj.growthType === "string"
             ? obj.growthType
             : growth > 0
-            ? "positive"
-            : growth < 0
-            ? "negative"
-            : "no_change";
+              ? "positive"
+              : growth < 0
+                ? "negative"
+                : "no_change";
         return {
           count,
           total: count,
@@ -94,16 +88,12 @@ export default function SubscriptionsPage() {
   const {
     data: stats,
     isLoading: isStatsLoading,
-    refetch: refetchStats,
-    isFetching: isStatsFetching,
   } = useSubscriptionStats();
 
   // Fetch Subscriptions: GET /api/v1/admin/subscriptions?page=1&limit=10&platform=ios&status=active
   const {
     data: subscriptionsResponse,
     isLoading: isListLoading,
-    refetch: refetchList,
-    isFetching: isListFetching,
   } = useSubscriptions({
     page,
     limit,
@@ -122,51 +112,26 @@ export default function SubscriptionsPage() {
 
   // Metric extractions supporting both new MetricStat objects and legacy numbers
   const totalSubscribersMetric = useMemo(
-    () =>
-      extractMetric(
-        stats,
-        "totalSubscribers",
-        "totalSubscribersCount"
-      ),
-    [stats]
+    () => extractMetric(stats, "totalSubscribers", "totalSubscribersCount"),
+    [stats],
   );
   const activeSubscribersMetric = useMemo(
-    () =>
-      extractMetric(
-        stats,
-        "activeSubscribers",
-        "activeSubscribersCount"
-      ),
-    [stats]
+    () => extractMetric(stats, "activeSubscribers", "activeSubscribersCount"),
+    [stats],
   );
   const expiringSoonMetric = useMemo(
-    () =>
-      extractMetric(
-        stats,
-        "expiringSoon",
-        "expiringSoonCount"
-      ),
-    [stats]
+    () => extractMetric(stats, "expiringSoon", "expiringSoonCount"),
+    [stats],
   );
   const canceledSubscribersMetric = useMemo(
     () =>
-      extractMetric(
-        stats,
-        "canceledSubscribers",
-        "canceledSubscribersCount"
-      ),
-    [stats]
+      extractMetric(stats, "canceledSubscribers", "canceledSubscribersCount"),
+    [stats],
   );
   const expiredSubscribersMetric = useMemo(
-    () =>
-      extractMetric(
-        stats,
-        "expiredSubscribers",
-        "expiredSubscribersCount"
-      ),
-    [stats]
+    () => extractMetric(stats, "expiredSubscribers", "expiredSubscribersCount"),
+    [stats],
   );
-
 
   // Status Filter Tabs with dynamic badge counts
   const tabOptions: TabOption[] = useMemo(
@@ -213,7 +178,7 @@ export default function SubscriptionsPage() {
       expiringSoonMetric.count,
       expiredSubscribersMetric.count,
       canceledSubscribersMetric.count,
-    ]
+    ],
   );
 
   const handleViewDetails = (subscriber: ISubscriberItem) => {
@@ -226,89 +191,43 @@ export default function SubscriptionsPage() {
       getSubscriptionColumns({
         onViewDetails: handleViewDetails,
       }),
-    []
+    [],
   );
-
-  const handleRefresh = () => {
-    refetchStats();
-    refetchList();
-  };
-
-  const isRefreshing = isStatsFetching || isListFetching;
 
   return (
     <div className="p-6 lg:p-8 space-y-6 bg-background min-h-screen w-full">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-900 flex items-center gap-2.5">
-            <CreditCard className="w-7 h-7 text-indigo-600" />
-            Subscription Management
-          </h1>
-          <p className="text-xs md:text-sm text-zinc-500 mt-1">
-            Real-time in-app store receipts, recurring billing status, and subscriber lifecycle management.
-          </p>
-        </div>
+      <PageHeader
+        title="Subscription Management"
+        description="Real-time in-app store receipts, recurring billing status, and subscriber lifecycle management."
+      />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="h-9 px-3.5 text-xs font-semibold rounded-xl bg-white border-zinc-200 hover:bg-zinc-50 cursor-pointer shadow-2xs gap-2"
-        >
-          <RotateCw
-            className={`w-3.5 h-3.5 text-zinc-600 ${
-              isRefreshing ? "animate-spin text-indigo-600" : ""
-            }`}
-          />
-          <span>{isRefreshing ? "Syncing..." : "Refresh Data"}</span>
-        </Button>
-      </div>
-
-      {/* ─── 1. Stats Cards Grid ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {/* ১. Total Subscribers Card */}
         <StatCard
           title="Total Subscribers"
           value={totalSubscribersMetric.count ?? 0}
           metric={totalSubscribersMetric}
-          icon={Users}
-          colorClass="text-indigo-600"
-          bgColorClass="bg-indigo-50"
           isLoading={isStatsLoading}
         />
 
-        {/* ২. Active Subscribers Card */}
         <StatCard
           title="Active Subscribers"
           value={activeSubscribersMetric.count ?? 0}
           metric={activeSubscribersMetric}
-          icon={CheckCircle2}
-          colorClass="text-emerald-600"
-          bgColorClass="bg-emerald-50"
           isLoading={isStatsLoading}
         />
 
-        {/* ৩. Expiring Soon Card */}
         <StatCard
           title="Expiring Soon"
           value={expiringSoonMetric.count ?? 0}
           metric={expiringSoonMetric}
-          icon={Clock}
-          colorClass="text-amber-600"
-          bgColorClass="bg-amber-50"
           isLoading={isStatsLoading}
         />
 
-        {/* ৪. Canceled Subscribers Card */}
         <StatCard
           title="Canceled Subscribers"
           value={canceledSubscribersMetric.count ?? 0}
           metric={canceledSubscribersMetric}
-          icon={Ban}
-          colorClass="text-rose-600"
-          bgColorClass="bg-rose-50"
           isLoading={isStatsLoading}
         />
       </div>

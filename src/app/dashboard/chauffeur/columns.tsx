@@ -1,8 +1,10 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
-import { Eye, Pencil, Trash2, Loader2, User, Mail, Gift, Crown } from "lucide-react"
+import { Eye, Pencil, Trash2, Loader2, User, Mail, Gift, Crown, Award } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AxiosError } from "axios"
@@ -22,8 +24,8 @@ import {
 import { CustomInput } from "@/components/shared/CustomInput"
 import { CustomModal } from "@/components/shared/CustomModal"
 import { FormFieldWrapper } from "@/components/shared/FormFieldWrapper"
-import { ChauffeurDetailModal } from "./components/ChauffeurDetailModal"
 import { GrantFreeSubscriptionModal } from "./components/GrantFreeSubscriptionModal"
+import { ManageBadgesModal } from "./components/ManageBadgesModal"
 
 export interface ChauffeurStats {
   totalJobsCreated?: number;
@@ -39,6 +41,8 @@ export interface Chauffeur {
   email: string;
   phone: string;
   status: string;
+  badge?: string | null;
+  badges?: string[];
   profile?: string;
   profilePicture?: string;
   companyRole?: string;
@@ -132,9 +136,10 @@ const SubscriptionBadge = ({ subscription }: { subscription: Chauffeur["subscrip
 };
 
 const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
   const [name, setName] = useState(chauffeur.name || "");
   const [email, setEmail] = useState(chauffeur.email || "");
   
@@ -189,24 +194,17 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
 
   return (
     <div className="flex items-center justify-center gap-1">
-      {/* View Details Button & Modal */}
+      {/* View Details Button */}
       <button
         onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
-          setIsDetailOpen(true);
+          router.push(`/dashboard/chauffeur/${chauffeurId}`);
         }}
         className="text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
         title="View Details"
       >
         <Eye size={15} />
       </button>
-
-      <ChauffeurDetailModal
-        userId={chauffeur._id || chauffeur.id || null}
-        isOpen={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        fallbackData={chauffeur}
-      />
 
       {/* Edit Chauffeur Trigger Button & CustomModal */}
       <button
@@ -274,6 +272,27 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
         onOpenChange={setIsSubModalOpen}
       />
 
+      {/* Manage Badges Button & Modal */}
+      <button
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          setIsBadgeModalOpen(true);
+        }}
+        className="text-zinc-400 hover:text-yellow-600 hover:bg-yellow-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
+        title="Manage Badge"
+      >
+        <Award size={15} />
+      </button>
+
+      <ManageBadgesModal
+        userId={chauffeur._id || chauffeur.id || null}
+        userName={chauffeur.name}
+        currentBadge={chauffeur.badge}
+        currentBadges={chauffeur.badges}
+        isOpen={isBadgeModalOpen}
+        onOpenChange={setIsBadgeModalOpen}
+      />
+
       {/* Delete Dialog */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -323,27 +342,58 @@ export const getColumns = (): ColumnDef<Chauffeur>[] => [
       const idDisplay = chauffeur._id ? `#${chauffeur._id.slice(-6).toUpperCase()}` : chauffeur.id || "";
       const avatarSrc = chauffeur.profilePicture || chauffeur.profile;
 
+      const chauffeurId = chauffeur._id || chauffeur.id || "";
+
       return (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
+        <Link
+          href={`/dashboard/chauffeur/${chauffeurId}`}
+          className="flex items-center gap-3 group cursor-pointer"
+        >
+          <Avatar className="h-10 w-10 transition-transform group-hover:scale-105">
             {avatarSrc && <AvatarImage src={avatarSrc} alt={chauffeur.name} />}
             <AvatarFallback className={`${chauffeur.avatarBg || "bg-purple-100 text-purple-700"} font-semibold text-sm`}>
               {initial}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-sm text-gray-900">{chauffeur.name || "Unnamed Chauffeur"}</p>
-            <p className="text-[11px] text-gray-400 font-medium">{idDisplay}</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="font-semibold text-sm text-gray-900 group-hover:text-blue-600 transition-colors">
+                {chauffeur.name || "Unnamed Chauffeur"}
+              </p>
+              {Array.isArray(chauffeur.badges) && chauffeur.badges.length > 0 ? (
+                chauffeur.badges.map((b) => (
+                  <span
+                    key={b}
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      b.includes("Elite")
+                        ? "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-300"
+                        : "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
+                    }`}
+                    title={b}
+                  >
+                    {b}
+                  </span>
+                ))
+              ) : chauffeur.badge ? (
+                <span 
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                    chauffeur.badge.includes("Elite") 
+                      ? "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-300" 
+                      : "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
+                  }`}
+                  title={chauffeur.badge}
+                >
+                  {chauffeur.badge}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-[11px] text-gray-500 font-medium">{chauffeur.email || "No email"}</p>
           </div>
-        </div>
+        </Link>
       );
     },
   },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => <div className="text-sm text-gray-600 font-medium">{row.getValue("email") || "—"}</div>,
-  },
+
   {
     accessorKey: "phone",
     header: "Phone",

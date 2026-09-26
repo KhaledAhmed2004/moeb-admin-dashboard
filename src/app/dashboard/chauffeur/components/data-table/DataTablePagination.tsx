@@ -25,6 +25,7 @@ interface DataTablePaginationProps {
   isLoading: boolean;
   handleLimitSelect: (value: string) => void;
   handlePageClick: (page: number) => void;
+  itemName?: string;
 }
 
 export function DataTablePagination({
@@ -38,6 +39,7 @@ export function DataTablePagination({
   isLoading,
   handleLimitSelect,
   handlePageClick,
+  itemName = "records",
 }: DataTablePaginationProps) {
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 text-xs">
@@ -46,7 +48,7 @@ export function DataTablePagination({
         <span className="text-gray-600 font-medium">
           Showing <strong className="text-gray-900">{startRecord}</strong> to{" "}
           <strong className="text-gray-900">{endRecord}</strong> of{" "}
-          <strong className="text-gray-900">{totalCount}</strong> chauffeurs
+          <strong className="text-gray-900">{totalCount}</strong> {itemName}
         </span>
 
         <div className="flex items-center gap-1.5">

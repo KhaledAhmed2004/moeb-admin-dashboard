@@ -2,14 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, CheckCircle2, DollarSign, Plus, MoreVertical, Trash2, Edit3, CheckCheck, MapPin, Eye } from "lucide-react";
+import { Package, CheckCircle2, DollarSign, MoreVertical, Trash2, Edit3, CheckCheck, MapPin, Eye } from "lucide-react";
 import { CustomSelect } from "@/components/shared/CustomSelect";
 import { DataTable, ColumnDef } from "@/components/shared/DataTable";
 import { StatCard } from "@/components/shared/StatCard";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import { ItemEntity, ItemStatsResponse } from "./types";
-import { AddItemModal } from "./AddItemModal";
 import { EditItemModal } from "./EditItemModal";
 import { ViewItemModal } from "./ViewItemModal";
 import {
@@ -34,7 +33,6 @@ import { getMediaUrl } from "@/lib/utils";
 
 export default function ItemManagementPage() {
   const queryClient = useQueryClient();
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<ItemEntity | null>(null);
   const [editingItem, setEditingItem] = useState<ItemEntity | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
@@ -316,13 +314,6 @@ export default function ItemManagementPage() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem
-                onClick={() => setViewingItem(item)}
-                className="gap-2 text-indigo-600 font-medium cursor-pointer"
-              >
-                <Eye size={15} />
-                View Details
-              </DropdownMenuItem>
               {item.status === "AVAILABLE" && (
                 <DropdownMenuItem
                   onClick={() => markAsSoldMutation.mutate(item._id)}
@@ -368,83 +359,23 @@ export default function ItemManagementPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Items"
-          value={statsData?.totalItems?.total ?? totalCount}
-          subtitle="All platform items"
-          icon={Package}
-          colorClass="text-indigo-700"
-          bgColorClass="bg-indigo-50"
+          value={statsData?.totalItems?.count ?? totalCount}
+          metric={statsData?.totalItems}
           isLoading={isLoading || isStatsLoading}
-          trend={
-            statsData?.totalItems?.growth !== undefined
-              ? `${statsData.totalItems.growth}%`
-              : undefined
-          }
-          trendUp={statsData?.totalItems?.growthType !== "decrease"}
-          trendBgClass={
-            statsData?.totalItems?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            statsData?.totalItems?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
 
         <StatCard
           title="Available Items"
-          value={statsData?.availableItems?.total ?? availableCount}
-          subtitle="Active in marketplace feed"
-          icon={CheckCircle2}
-          colorClass="text-emerald-700"
-          bgColorClass="bg-emerald-50"
+          value={statsData?.availableItems?.count ?? availableCount}
+          metric={statsData?.availableItems}
           isLoading={isLoading || isStatsLoading}
-          trend={
-            statsData?.availableItems?.growth !== undefined
-              ? `${statsData.availableItems.growth}%`
-              : undefined
-          }
-          trendUp={statsData?.availableItems?.growthType !== "decrease"}
-          trendBgClass={
-            statsData?.availableItems?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            statsData?.availableItems?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
 
         <StatCard
           title="Sold Items"
-          value={statsData?.soldItems?.total ?? soldCount}
-          subtitle="Completed transactions"
-          icon={DollarSign}
-          colorClass="text-purple-700"
-          bgColorClass="bg-purple-50"
+          value={statsData?.soldItems?.count ?? soldCount}
+          metric={statsData?.soldItems}
           isLoading={isLoading || isStatsLoading}
-          trend={
-            statsData?.soldItems?.growth !== undefined
-              ? `${statsData.soldItems.growth}%`
-              : undefined
-          }
-          trendUp={statsData?.soldItems?.growthType !== "decrease"}
-          trendBgClass={
-            statsData?.soldItems?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            statsData?.soldItems?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
       </div>
 
@@ -485,15 +416,6 @@ export default function ItemManagementPage() {
               placeholder="Condition"
             />
           }
-          actionSlot={
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-primary rounded-lg hover:bg-purple-700 transition-colors justify-center shadow-sm cursor-pointer"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-              Add New Item
-            </button>
-          }
           emptyMessage="No items found in platform catalog."
           currentPage={currentPage}
           totalPages={totalPages}
@@ -510,16 +432,6 @@ export default function ItemManagementPage() {
         isOpen={!!viewingItem}
         onOpenChange={(open) => {
           if (!open) setViewingItem(null);
-        }}
-      />
-
-      {/* Add New Item Modal */}
-      <AddItemModal
-        isOpen={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        onSuccess={() => {
-          refetch();
-          refetchStats();
         }}
       />
 

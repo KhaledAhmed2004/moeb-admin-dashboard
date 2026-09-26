@@ -133,16 +133,16 @@ export function SubscriberDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
-        <DialogHeader className="p-6 pb-4 border-b border-zinc-100 bg-zinc-50/50">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 sm:rounded-xl">
+        <DialogHeader className="p-6 pb-4 border-b">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle className="text-xl font-bold text-zinc-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-indigo-600" />
+              <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-muted-foreground" />
                 Subscription Details
               </DialogTitle>
-              <DialogDescription className="text-xs text-zinc-500 mt-1">
-                Order / Txn ID: {data?.orderId || data?.latestTransactionId || data?.originalTransactionId || data?._id || "..."}
+              <DialogDescription className="mt-1.5">
+                Transaction Ref: <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{data?.orderId || data?.latestTransactionId || data?.originalTransactionId || data?._id || "..."}</span>
               </DialogDescription>
             </div>
             {data && getValidityBadge(data.validityStatus, data.isExpired)}
@@ -168,14 +168,14 @@ export function SubscriberDetailModal({
         ) : (
           <div className="p-6 space-y-6">
             {/* User Profile Card */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-              <div className="flex items-center gap-3.5">
-                <Avatar className="w-12 h-12 border-2 border-white shadow-xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border bg-card text-card-foreground shadow-sm">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-12 h-12">
                   <AvatarImage
                     src={data.user?.profilePicture}
                     alt={data.user?.name || "Subscriber"}
                   />
-                  <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold text-base">
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
                     {(data.user?.name || "User").slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -184,16 +184,6 @@ export function SubscriberDetailModal({
                     <h3 className="text-base font-bold text-zinc-900">
                       {data.user?.name || "Unknown Subscriber"}
                     </h3>
-                    {data.user?.companyRole && (
-                      <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                        {data.user.companyRole}
-                      </Badge>
-                    )}
-                    {data.user?.appState && (
-                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-bold">
-                        {data.user.appState}
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-zinc-500 mt-1 flex-wrap">
                     <span className="flex items-center gap-1">
@@ -228,45 +218,40 @@ export function SubscriberDetailModal({
             </div>
 
             {/* Plan Highlights Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50/70 to-purple-50/50 border border-indigo-100/80">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 block">
-                  Subscription Plan
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-xl border bg-card text-card-foreground shadow-sm">
+                <span className="text-[11px] font-semibold uppercase text-muted-foreground block mb-1">
+                  Current Plan
                 </span>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-lg font-black text-indigo-950">
-                    {data.planLabel || data.plan || "YEARLY"}
+                <div className="mt-1">
+                  <span className="text-xl font-bold">
+                    {data.plan === "YEARLY" && data.isPremium ? "YEARLY PRO" : (data.planLabel || data.plan || "YEARLY")}
                   </span>
-                  {data.isPremium && (
-                    <Badge className="bg-amber-400/20 text-amber-800 border-amber-300 text-[10px] font-bold">
-                      PRO
-                    </Badge>
-                  )}
                 </div>
-                <span className="text-[11px] text-indigo-700/80 mt-1 block">
-                  Status: <span className="font-semibold uppercase">{data.status}</span>
+                <span className="text-xs text-muted-foreground mt-2 block">
+                  Status: <span className="font-semibold uppercase text-foreground">{data.status}</span>
                 </span>
               </div>
 
-              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block">
+              <div className="p-4 rounded-xl border bg-card text-card-foreground shadow-sm">
+                <span className="text-[11px] font-semibold uppercase text-muted-foreground block mb-1">
                   Platform Store
                 </span>
-                <div className="mt-1 text-sm font-bold text-zinc-900">
+                <div className="mt-1 text-sm font-bold text-foreground">
                   {data.platformLabel || getPlatformIcon(data.platform)}
                 </div>
-                <span className="text-[11px] text-zinc-500 mt-1 block">
-                  Channel: <span className="font-medium capitalize">{data.platform}</span>
+                <span className="text-xs text-muted-foreground mt-2 block">
+                  Channel: <span className="font-semibold capitalize text-foreground">{data.platform}</span>
                 </span>
               </div>
 
-              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block">
+              <div className="p-4 rounded-xl border bg-card text-card-foreground shadow-sm">
+                <span className="text-[11px] font-semibold uppercase text-muted-foreground block mb-1">
                   Validity & Remaining
                 </span>
                 <div className="mt-1 flex items-baseline gap-1.5">
                   <span
-                    className={`text-lg font-black ${
+                    className={`text-xl font-bold ${
                       (data.daysRemaining ?? 0) > 30
                         ? "text-emerald-700"
                         : (data.daysRemaining ?? 0) > 0
@@ -292,14 +277,14 @@ export function SubscriberDetailModal({
 
             {/* In-App Purchase & Store Identifiers */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-zinc-400" />
-                Store & Transaction Credentials
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5" />
+                Transaction Credentials
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 {/* Product ID */}
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2">
                   <div className="truncate">
                     <span className="text-[10px] uppercase font-bold text-zinc-400 block">
                       Product ID
@@ -325,7 +310,7 @@ export function SubscriberDetailModal({
                 </div>
 
                 {/* Order ID */}
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2">
                   <div className="truncate">
                     <span className="text-[10px] uppercase font-bold text-zinc-400 block">
                       Store Order ID
@@ -351,7 +336,7 @@ export function SubscriberDetailModal({
                 </div>
 
                 {/* Latest Transaction ID */}
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2">
                   <div className="truncate">
                     <span className="text-[10px] uppercase font-bold text-zinc-400 block">
                       Latest Transaction ID
@@ -382,7 +367,7 @@ export function SubscriberDetailModal({
                 </div>
 
                 {/* Original Transaction ID */}
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-lg border bg-muted/40 flex items-center justify-between gap-2">
                   <div className="truncate">
                     <span className="text-[10px] uppercase font-bold text-zinc-400 block">
                       Original Transaction ID
@@ -412,9 +397,9 @@ export function SubscriberDetailModal({
 
               {/* Purchase Token if present */}
               {data.purchaseToken && (
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400">
+                <div className="p-3 rounded-lg border bg-muted/40">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground">
                       Google Play Purchase Token
                     </span>
                     <Button
@@ -439,34 +424,34 @@ export function SubscriberDetailModal({
             </div>
 
             {/* Timeline Dates */}
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100 space-y-2.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                Subscription Lifecycle & Dates
+            <div className="p-4 rounded-xl border bg-card text-card-foreground shadow-sm space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                Subscription Lifecycle
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-xs">
-                <div className="flex justify-between py-1 border-b border-zinc-200/50">
-                  <span className="text-zinc-500">Subscription Started:</span>
-                  <span className="font-medium text-zinc-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground text-xs">Started On:</span>
+                  <span className="font-medium text-foreground text-xs">
                     {formatDate(data.createdAt)}
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-zinc-200/50">
-                  <span className="text-zinc-500">Expiration / Renews:</span>
-                  <span className="font-semibold text-zinc-900">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground text-xs">Expiration / Renews:</span>
+                  <span className="font-medium text-foreground text-xs">
                     {formatDate(data.expiresAt)}
                   </span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-zinc-200/50">
-                  <span className="text-zinc-500">Last Synced / Updated:</span>
-                  <span className="font-medium text-zinc-800">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground text-xs">Last Synced:</span>
+                  <span className="font-medium text-foreground text-xs">
                     {formatDate(data.updatedAt)}
                   </span>
                 </div>
                 {data.currentPeriodEnd && (
-                  <div className="flex justify-between py-1 border-b border-zinc-200/50">
-                    <span className="text-zinc-500">Current Period End:</span>
-                    <span className="font-medium text-zinc-800">
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-muted-foreground text-xs">Current Period End:</span>
+                    <span className="font-medium text-foreground text-xs">
                       {formatDate(data.currentPeriodEnd)}
                     </span>
                   </div>

@@ -27,7 +27,6 @@ import {
 import { ChauffeurOverviewTab } from "./details-tabs/ChauffeurOverviewTab";
 import { ChauffeurVehiclesTab } from "./details-tabs/ChauffeurVehiclesTab";
 import { ChauffeurDocumentsTab } from "./details-tabs/ChauffeurDocumentsTab";
-import { ChauffeurServiceAreaTab } from "./details-tabs/ChauffeurServiceAreaTab";
 import { FilePreviewModal } from "./details-tabs/FilePreviewModal";
 import { GrantFreeSubscriptionModal } from "./GrantFreeSubscriptionModal";
 import { CustomModal } from "@/components/shared/CustomModal";
@@ -72,7 +71,14 @@ export function ChauffeurDetailModal({
     }
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
     const origin = apiBase.replace(/\/api\/v1\/?$/, "");
-    const cleanPath = url.replace(/^\/+/, "/");
+    
+    let cleanPath = url.startsWith("/") ? url : `/${url}`;
+    
+    // Assuming backend serves these from /uploads if not already present
+    if (!cleanPath.startsWith("/uploads/")) {
+      cleanPath = `/uploads${cleanPath}`;
+    }
+    
     return `${origin}${cleanPath}`;
   };
 
@@ -431,6 +437,12 @@ export function ChauffeurDetailModal({
   const [vehicleRejectReasonCode, setVehicleRejectReasonCode] = useState("REGISTRATION_UNREADABLE");
   const [pendingRejectVehicleIds, setPendingRejectVehicleIds] = useState<string[]>([]);
   const [vehicleStatusOverrides, setVehicleStatusOverrides] = useState<Record<string, string>>({});
+  const [documentStatusOverrides, setDocumentStatusOverrides] = useState<Record<string, string>>({});
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [isDocRejectModalOpen, setIsDocRejectModalOpen] = useState(false);
+  const [docRejectReason, setDocRejectReason] = useState("Document unreadable or blurry");
+  const [pendingRejectDocIds, setPendingRejectDocIds] = useState<string[]>([]);
+  const [isDocRejecting, setIsDocRejecting] = useState(false);
 
   const rawData = data;
   const user: ApplicationUserDetails | undefined =
@@ -453,13 +465,24 @@ export function ChauffeurDetailModal({
     }
     return v;
   });
-  const documents: ApplicationDocument[] =
+  const rawDocuments: ApplicationDocument[] =
     (data?.documents as ApplicationDocument[] | undefined) ||
     (rawData?.user as { documents?: ApplicationDocument[] } | undefined)?.documents ||
     [];
-  const serviceArea: ApplicationServiceArea | undefined =
-    (data?.serviceArea as ApplicationServiceArea | undefined) ||
-    (rawData?.user as { serviceArea?: ApplicationServiceArea } | undefined)?.serviceArea;
+  const documents: ApplicationDocument[] = rawDocuments.map((doc, idx) => {
+    const dId = doc._id || (doc as { id?: string }).id || `${doc.documentType || "doc"}-${idx}`;
+    const override =
+      documentStatusOverrides[dId] ||
+      (doc._id ? documentStatusOverrides[doc._id] : undefined) ||
+      ((doc as { id?: string }).id ? documentStatusOverrides[(doc as { id?: string }).id!] : undefined);
+    if (override) {
+      return { ...doc, status: override };
+    }
+    return doc;
+  });
+  const serviceArea: ApplicationServiceArea | string | undefined =
+    (data?.serviceArea as ApplicationServiceArea | string | undefined) ||
+    (rawData?.user as { serviceArea?: ApplicationServiceArea | string } | undefined)?.serviceArea;
   const reviewSummary = (data?.reviewSummary as { averageRating?: number; totalReviews?: number } | undefined) || {
     averageRating:
       (data as unknown as { averageRating?: number })?.averageRating ??
@@ -512,6 +535,16 @@ export function ChauffeurDetailModal({
     fallbackData?.joined;
   const updatedAt = user?.updatedAt || (data as unknown as { updatedAt?: string })?.updatedAt;
   const initial = (name?.[0] || "C").toUpperCase();
+  const userBadges: string[] =
+    Array.isArray(user?.badges) && user.badges.length > 0
+      ? user.badges
+      : Array.isArray(fallbackData?.badges) && fallbackData.badges.length > 0
+      ? fallbackData.badges
+      : user?.badge
+      ? [user.badge]
+      : fallbackData?.badge
+      ? [fallbackData.badge]
+      : [];
 
   const getVehicleIdentifier = (v: ApplicationVehicle, idx: number): string => {
     const candidate =
@@ -617,21 +650,99 @@ export function ChauffeurDetailModal({
 
   const [isDocApproving, setIsDocApproving] = useState(false);
 
-  const handleApproveAllDocuments = async () => {
-    if (documents.length === 0) {
-      toast.info("No documents to approve");
+  const getDocumentIdentifier = (doc: ApplicationDocument, idx: number): string => {
+    const candidate = doc._id || (doc as { id?: string }).id;
+    if (candidate && typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+    return `${doc.documentType || "doc"}-${idx}`;
+  };
+
+  const handleToggleDocumentSelect = (id: string) => {
+    setSelectedDocumentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllDocuments = () => {
+    if (documents.length === 0) return;
+    if (selectedDocumentIds.length === documents.length) {
+      setSelectedDocumentIds([]);
+    } else {
+      setSelectedDocumentIds(documents.map((doc, idx) => getDocumentIdentifier(doc, idx)));
+    }
+  };
+
+  const handleApproveDocuments = async (overrideIds?: string[]) => {
+    const targetIds =
+      overrideIds && overrideIds.length > 0
+        ? overrideIds
+        : selectedDocumentIds.length > 0
+        ? selectedDocumentIds
+        : documents.map((doc, idx) => getDocumentIdentifier(doc, idx));
+
+    if (targetIds.length === 0) {
+      toast.info("No documents selected to approve");
       return;
     }
+
     setIsDocApproving(true);
     try {
       await Promise.all(
-        documents.map((doc: ApplicationDocument, idx: number) => {
-          const docId = doc._id || (doc as { id?: string }).id || `${idx}`;
-          return api.patch(`/admin/documents/${docId}/status`, { status: "APPROVED" }).catch(() => null);
+        targetIds.map(async (docId) => {
+          try {
+            await api.patch(`/admin/documents/${docId}/status`, { status: "APPROVED" });
+          } catch {
+            await api.patch(`/documents/${docId}/approve`, { status: "APPROVED" }).catch(() => null);
+          }
         })
       );
-      toast.success("Documents approved successfully");
+
+      toast.success(
+        targetIds.length > 1
+          ? `${targetIds.length} documents approved successfully`
+          : "Document approved successfully"
+      );
+
+      setDocumentStatusOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of targetIds) {
+          next[id] = "APPROVED";
+        }
+        return next;
+      });
+
+      setSelectedDocumentIds([]);
+
+      queryClient.setQueryData<Record<string, unknown>>(
+        ["admin-chauffeur-details", userId],
+        (oldData) => {
+          if (!oldData) return oldData;
+          const currentDocs =
+            (oldData.documents as ApplicationDocument[]) ||
+            ((oldData.user as { documents?: ApplicationDocument[] })?.documents) ||
+            [];
+
+          const updatedDocs = currentDocs.map((doc, idx) => {
+            const dId = getDocumentIdentifier(doc, idx);
+            if (targetIds.includes(dId) || (doc._id && targetIds.includes(doc._id))) {
+              return { ...doc, status: "APPROVED" };
+            }
+            return doc;
+          });
+
+          return {
+            ...oldData,
+            documents: updatedDocs,
+            user: oldData.user
+              ? { ...(oldData.user as Record<string, unknown>), documents: updatedDocs }
+              : oldData.user,
+          };
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
     } catch {
       toast.error("Failed to approve documents");
     } finally {
@@ -639,25 +750,96 @@ export function ChauffeurDetailModal({
     }
   };
 
-  const handleRejectAllDocuments = async () => {
-    if (documents.length === 0) {
-      toast.info("No documents to reject");
+  const handleOpenRejectDocumentsModal = (ids?: string[]) => {
+    const targetIds =
+      ids && ids.length > 0
+        ? ids
+        : selectedDocumentIds.length > 0
+        ? selectedDocumentIds
+        : documents.map((doc, idx) => getDocumentIdentifier(doc, idx));
+
+    if (targetIds.length === 0) {
+      toast.info("No documents selected to reject");
       return;
     }
-    setIsDocApproving(true);
+
+    setPendingRejectDocIds(targetIds);
+    setDocRejectReason("Document unreadable or blurry");
+    setIsDocRejectModalOpen(true);
+  };
+
+  const handleConfirmRejectDocuments = async () => {
+    if (pendingRejectDocIds.length === 0) return;
+    const finalReason = docRejectReason.trim() || "Document rejected by administrator";
+    setIsDocRejecting(true);
     try {
       await Promise.all(
-        documents.map((doc: ApplicationDocument, idx: number) => {
-          const docId = doc._id || (doc as { id?: string }).id || `${idx}`;
-          return api.patch(`/admin/documents/${docId}/status`, { status: "REJECTED" }).catch(() => null);
+        pendingRejectDocIds.map(async (docId) => {
+          try {
+            await api.patch(`/admin/documents/${docId}/status`, {
+              status: "REJECTED",
+              reason: finalReason,
+              rejectionReason: finalReason,
+            });
+          } catch {
+            await api.patch(`/documents/${docId}/reject`, {
+              status: "REJECTED",
+              reason: finalReason,
+            }).catch(() => null);
+          }
         })
       );
-      toast.success("Documents rejected");
+
+      toast.success(
+        pendingRejectDocIds.length > 1
+          ? `${pendingRejectDocIds.length} documents rejected`
+          : "Document rejected"
+      );
+
+      setDocumentStatusOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of pendingRejectDocIds) {
+          next[id] = "REJECTED";
+        }
+        return next;
+      });
+
+      setSelectedDocumentIds([]);
+      setIsDocRejectModalOpen(false);
+
+      queryClient.setQueryData<Record<string, unknown>>(
+        ["admin-chauffeur-details", userId],
+        (oldData) => {
+          if (!oldData) return oldData;
+          const currentDocs =
+            (oldData.documents as ApplicationDocument[]) ||
+            ((oldData.user as { documents?: ApplicationDocument[] })?.documents) ||
+            [];
+
+          const updatedDocs = currentDocs.map((doc, idx) => {
+            const dId = getDocumentIdentifier(doc, idx);
+            if (pendingRejectDocIds.includes(dId) || (doc._id && pendingRejectDocIds.includes(doc._id))) {
+              return { ...doc, status: "REJECTED", rejectionReason: finalReason };
+            }
+            return doc;
+          });
+
+          return {
+            ...oldData,
+            documents: updatedDocs,
+            user: oldData.user
+              ? { ...(oldData.user as Record<string, unknown>), documents: updatedDocs }
+              : oldData.user,
+          };
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
     } catch {
       toast.error("Failed to reject documents");
     } finally {
-      setIsDocApproving(false);
+      setIsDocRejecting(false);
     }
   };
 
@@ -687,31 +869,23 @@ export function ChauffeurDetailModal({
     const s = (st || "").toUpperCase();
     if (s.includes("APPROV") || s.includes("ACTIVE") || s === "VERIFIED" || s === "CLEAN") {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shadow-2xs">
-          <CheckCircle2 size={12} className="text-emerald-600" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80 shadow-2xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Approved
         </span>
       );
     }
     if (s.includes("SUSPEND") || s.includes("REJECT") || s.includes("INFECTED")) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 ring-1 ring-rose-200 shadow-2xs">
-          <Ban size={12} className="text-rose-600" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 ring-1 ring-rose-200/80 shadow-2xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
           {s.includes("REJECT") ? "Rejected" : "Suspended"}
         </span>
       );
     }
-    if (s === "SCANNING_PENDING") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 shadow-2xs">
-          <Clock size={12} className="text-amber-600" />
-          Scanning Pending
-        </span>
-      );
-    }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 shadow-2xs">
-        <Clock size={12} className="text-amber-600" />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200/80 shadow-2xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
         Pending Review
       </span>
     );
@@ -729,7 +903,7 @@ export function ChauffeurDetailModal({
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-xl font-bold text-gray-900">
-                  Chauffeur Application Dossier
+                  Application Dossier: {name}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-gray-500 mt-0.5">
                   Complete credentials, vehicle fleet, and compliance document inspection
@@ -758,25 +932,38 @@ export function ChauffeurDetailModal({
             ) : (
               <>
                 {/* Profile Hero Banner */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
                   <div className="flex items-center gap-4 min-w-0">
-                    <Avatar className="h-16 w-16 ring-2 ring-primary/10 shadow-sm flex-shrink-0">
+                    <Avatar className="h-12 w-12 ring-2 ring-primary/10 shadow-sm flex-shrink-0">
                       {profilePicture && <AvatarImage src={profilePicture} alt={name} className="object-cover" />}
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
                         {initial}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-lg text-gray-900 truncate">{name}</h3>
                         {getStatusBadge(appState)}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                          <ShieldCheck size={12} className="text-emerald-600" />
+                          Account Status: {accountState === "VERIFIED" ? "Verified" : accountState}
+                        </span>
+                        {userBadges.map((badgeName) => (
+                          <span
+                            key={badgeName}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                              badgeName.includes("Elite")
+                                ? "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-300"
+                                : "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
+                            }`}
+                            title={badgeName}
+                          >
+                            {badgeName}
+                          </span>
+                        ))}
                       </div>
-                      <p className="text-xs text-gray-500 font-medium mt-1 font-mono">
-                        ID: <span className="text-gray-700">{userId || "—"}</span>
-                      </p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-600 flex-wrap">
-                        <span className="flex items-center gap-1.5 truncate">
+                        <span className="flex items-center gap-1.5 truncate" title={`ID: ${userId || "—"}`}>
                           <Mail size={13} className="text-gray-400" />
                           {email}
                         </span>
@@ -784,25 +971,23 @@ export function ChauffeurDetailModal({
                           <Phone size={13} className="text-gray-400" />
                           {phone}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/70">
-                          <ShieldCheck size={12} className="text-emerald-600" />
-                          Identity: {accountState === "VERIFIED" ? "Verified" : accountState}
-                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex sm:flex-col items-start sm:items-end gap-2 shrink-0">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsSubscriptionModalOpen(true)}
-                      className="h-8 text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50 hover:text-purple-800 gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <Gift size={13} className="text-purple-600" />
-                      Manage Free Access
-                    </Button>
+                    {appState === "ACTIVE" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsSubscriptionModalOpen(true)}
+                        className="h-8 text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50 hover:text-purple-800 gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Gift size={13} className="text-purple-600" />
+                        Manage Free Access
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -824,9 +1009,6 @@ export function ChauffeurDetailModal({
                         {documents.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="compliance" className="rounded-lg text-xs font-semibold px-4 py-1.5">
-                      Area & Verification
-                    </TabsTrigger>
                   </TabsList>
 
                   {/* TAB 1: OVERVIEW */}
@@ -842,6 +1024,9 @@ export function ChauffeurDetailModal({
                       totalReviews={totalReviews}
                       createdAt={createdAt}
                       updatedAt={updatedAt}
+                      vehicles={vehicles}
+                      appState={appState}
+                      getStatusBadge={getStatusBadge}
                     />
                   </TabsContent>
 
@@ -874,17 +1059,13 @@ export function ChauffeurDetailModal({
                       resolveFileUrl={resolveFileUrl}
                       isPdfFile={isPdfFile}
                       setPreviewFile={setPreviewFile}
-                    />
-                  </TabsContent>
-
-                  {/* TAB 4: SERVICE AREA & VERIFICATION */}
-                  <TabsContent value="compliance" className="mt-4">
-                    <ChauffeurServiceAreaTab
-                      serviceArea={serviceArea}
-                      user={user}
-                      accountState={accountState}
-                      appState={appState}
-                      getStatusBadge={getStatusBadge}
+                      selectedDocumentIds={selectedDocumentIds}
+                      handleSelectAllDocuments={handleSelectAllDocuments}
+                      handleToggleDocumentSelect={handleToggleDocumentSelect}
+                      handleApproveDocuments={handleApproveDocuments}
+                      handleOpenRejectDocumentsModal={handleOpenRejectDocumentsModal}
+                      isDocApproving={isDocApproving}
+                      isDocRejecting={isDocRejecting}
                     />
                   </TabsContent>
                 </Tabs>
@@ -897,129 +1078,72 @@ export function ChauffeurDetailModal({
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl px-5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border-gray-200 shadow-2xs"
+              className="rounded-xl px-5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border-gray-200 shadow-2xs cursor-pointer"
             >
               Close
             </Button>
 
-            {/* Contextual Action Buttons based on Active Tab */}
-            {activeTab === "vehicles" && (
-              <div className="flex items-center gap-2.5 flex-nowrap">
-                <Button
-                  variant="outline"
-                  onClick={() => handleOpenRejectVehiclesModal()}
-                  disabled={approveVehiclesMutation.isPending || rejectVehiclesMutation.isPending}
-                  className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl text-xs font-semibold px-4 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  {rejectVehiclesMutation.isPending && (
-                    <Loader2 size={14} className="animate-spin mr-1.5" />
-                  )}
-                  {selectedVehicleIds.length > 1
-                    ? `Reject Selected (${selectedVehicleIds.length})`
-                    : "Reject Vehicle"}
-                </Button>
-
-                <Button
-                  onClick={() => handleApproveVehicles()}
-                  disabled={approveVehiclesMutation.isPending || rejectVehiclesMutation.isPending}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
-                >
-                  {approveVehiclesMutation.isPending && (
-                    <Loader2 size={14} className="animate-spin mr-1.5" />
-                  )}
-                  {selectedVehicleIds.length > 1
-                    ? `Approve Selected (${selectedVehicleIds.length})`
-                    : "Approve Vehicle"}
-                </Button>
-              </div>
-            )}
-
-            {activeTab === "documents" && (
-              <div className="flex items-center gap-2.5 flex-nowrap">
-                <Button
-                  variant="outline"
-                  onClick={handleRejectAllDocuments}
-                  disabled={isDocApproving}
-                  className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl text-xs font-semibold px-4 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  {isDocApproving && <Loader2 size={14} className="animate-spin mr-1.5" />}
-                  Reject Document
-                </Button>
-
-                <Button
-                  onClick={handleApproveAllDocuments}
-                  disabled={isDocApproving}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
-                >
-                  {isDocApproving && <Loader2 size={14} className="animate-spin mr-1.5" />}
-                  Approve Document
-                </Button>
-              </div>
-            )}
-
-            {activeTab !== "vehicles" && activeTab !== "documents" && (
-              <div className="flex items-center gap-2.5 flex-nowrap">
-                {appState === "PENDING" && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setRejectReason("Failed background check — invalid TLC records");
-                        setIsRejectModalOpen(true);
-                      }}
-                      disabled={approveMutation.isPending || rejectMutation.isPending}
-                      className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl text-xs font-semibold px-4 transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      {rejectMutation.isPending && (
-                        <Loader2 size={14} className="animate-spin mr-1.5" />
-                      )}
-                      Reject Application
-                    </Button>
-
-                    <Button
-                      onClick={() => userId && approveMutation.mutate(userId)}
-                      disabled={approveMutation.isPending || rejectMutation.isPending}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
-                    >
-                      {approveMutation.isPending && (
-                        <Loader2 size={14} className="animate-spin mr-1.5" />
-                      )}
-                      Approve Full Application
-                    </Button>
-                  </>
-                )}
-
-                {(appState === "APPROVED" || appState === "ACTIVE" || appState === "VERIFIED") && (
+            <div className="flex items-center gap-2.5 flex-nowrap">
+              {appState === "PENDING" && (
+                <>
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setSuspendNote("Account suspended due to policy/compliance review");
-                      setIsSuspendModalOpen(true);
+                      setRejectReason("Failed background check — invalid TLC records");
+                      setIsRejectModalOpen(true);
                     }}
-                    disabled={suspendMutation.isPending}
-                    className="text-rose-600 border-rose-200 hover:bg-rose-50 rounded-xl text-xs font-semibold px-4 whitespace-nowrap cursor-pointer"
+                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                    className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl text-xs font-semibold px-4 transition-colors whitespace-nowrap cursor-pointer"
                   >
-                    {suspendMutation.isPending && (
+                    {rejectMutation.isPending && (
                       <Loader2 size={14} className="animate-spin mr-1.5" />
                     )}
-                    Suspend Account
+                    Reject Application
                   </Button>
-                )}
 
-                {(appState === "SUSPENDED" || accountState === "SUSPENDED") && (
                   <Button
-                    onClick={() => userId && reactivateMutation.mutate(userId)}
-                    disabled={reactivateMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-4 whitespace-nowrap cursor-pointer"
+                    onClick={() => userId && approveMutation.mutate(userId)}
+                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
                   >
-                    {reactivateMutation.isPending && (
+                    {approveMutation.isPending && (
                       <Loader2 size={14} className="animate-spin mr-1.5" />
                     )}
-                    Reactivate Account
+                    Approve Full Application
                   </Button>
-                )}
-              </div>
-            )}
+                </>
+              )}
+
+              {(appState === "APPROVED" || appState === "ACTIVE" || appState === "VERIFIED") && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSuspendNote("Account suspended due to policy/compliance review");
+                    setIsSuspendModalOpen(true);
+                  }}
+                  disabled={suspendMutation.isPending}
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50 rounded-xl text-xs font-semibold px-4 whitespace-nowrap cursor-pointer"
+                >
+                  {suspendMutation.isPending && (
+                    <Loader2 size={14} className="animate-spin mr-1.5" />
+                  )}
+                  Suspend Account
+                </Button>
+              )}
+
+              {(appState === "SUSPENDED" || accountState === "SUSPENDED") && (
+                <Button
+                  onClick={() => userId && reactivateMutation.mutate(userId)}
+                  disabled={reactivateMutation.isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold px-4 whitespace-nowrap cursor-pointer"
+                >
+                  {reactivateMutation.isPending && (
+                    <Loader2 size={14} className="animate-spin mr-1.5" />
+                  )}
+                  Reactivate Account
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1170,10 +1294,74 @@ export function ChauffeurDetailModal({
         </div>
       </CustomModal>
 
+      {/* Document Rejection Reason Modal */}
+      <CustomModal
+        isOpen={isDocRejectModalOpen}
+        onOpenChange={setIsDocRejectModalOpen}
+        title="Reject Document(s)"
+        description={`Provide a remediation reason for rejecting ${pendingRejectDocIds.length} document(s).`}
+        size="md"
+        submitLabel="Confirm Document Rejection"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleConfirmRejectDocuments();
+        }}
+        isSubmitting={isDocRejecting}
+      >
+        <div className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              Quick Reasons
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Unreadable / Blurry", reason: "Document is unreadable, blurry, or low quality" },
+                { label: "Expired Document", reason: "Document has expired and is no longer valid" },
+                { label: "Wrong Document", reason: "Incorrect document type uploaded" },
+                { label: "Name Mismatch", reason: "Name on document does not match account applicant" },
+                { label: "Missing Pages", reason: "Document is incomplete or missing pages/back side" },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setDocRejectReason(item.reason)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer font-medium ${
+                    docRejectReason === item.reason
+                      ? "bg-rose-50 border-rose-300 text-rose-700 font-semibold"
+                      : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-700">
+              Remediation Note / Reason <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              value={docRejectReason}
+              onChange={(e) => setDocRejectReason(e.target.value)}
+              placeholder="e.g. Document is unreadable, blurry, or low quality"
+              rows={3}
+              className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none bg-zinc-50/50"
+              required
+            />
+            <p className="text-[11px] text-gray-400">
+              The driver will receive this remediation note to upload an updated document.
+            </p>
+          </div>
+        </div>
+      </CustomModal>
+
       {/* Standalone Interactive File & PDF Preview Dialog */}
       <FilePreviewModal
         previewFile={previewFile}
         onOpenChange={(open) => setPreviewFile((prev) => ({ ...prev, isOpen: open }))}
+        onApprove={(docId) => handleApproveDocuments([docId])}
+        onReject={(docId) => handleOpenRejectDocumentsModal([docId])}
       />
 
       {/* Grant/Revoke Free Subscription Modal */}

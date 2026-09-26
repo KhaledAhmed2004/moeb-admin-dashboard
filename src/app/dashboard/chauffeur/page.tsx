@@ -8,10 +8,11 @@ import { DataTable } from "./data-table";
 import { getColumns, Chauffeur } from "./columns";
 import { CustomTabs, TabOption } from "@/components/shared/CustomTabs";
 import { StatCard, MetricStat } from "@/components/shared/StatCard";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 function extractMetric(data: unknown, ...keys: string[]): MetricStat {
   if (!data || typeof data !== "object") {
-    return { count: 0, total: 0, growth: 0, growthType: "no_change" };
+    return { count: 0, growth: 0, growthType: "no_change" };
   }
 
   const record = data as Record<string, unknown>;
@@ -21,7 +22,6 @@ function extractMetric(data: unknown, ...keys: string[]): MetricStat {
       if (typeof val === "number") {
         return {
           count: val,
-          total: val,
           growth: 0,
           growthType: "no_change",
         };
@@ -47,7 +47,6 @@ function extractMetric(data: unknown, ...keys: string[]): MetricStat {
             : "no_change";
         return {
           count,
-          total: count,
           growth,
           growthType,
         };
@@ -55,7 +54,7 @@ function extractMetric(data: unknown, ...keys: string[]): MetricStat {
     }
   }
 
-  return { count: 0, total: 0, growth: 0, growthType: "no_change" };
+  return { count: 0, growth: 0, growthType: "no_change" };
 }
 
 export default function ChauffeurManagementPage() {
@@ -263,54 +262,35 @@ export default function ChauffeurManagementPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6 bg-background">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            User Management
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 font-medium">
-            Manage, verify, and monitor all registered users and
-            accounts
-          </p>
-        </div>
-      </div>
+      <PageHeader 
+        title="User Management"
+        description="Manage, verify, and monitor all registered users and accounts"
+      />
 
       {/* Pure Metric Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
-          value={totalUsers?.count ?? totalUsers?.total ?? 0}
+          value={totalUsers?.count ?? 0}
           metric={totalUsers}
-          icon={Users}
-          colorClass="text-indigo-600"
-          bgColorClass="bg-indigo-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Approved Users"
-          value={approvedDrivers?.count ?? approvedDrivers?.total ?? 0}
+          value={approvedDrivers?.count ?? 0}
           metric={approvedDrivers}
-          icon={CheckCircle2}
-          colorClass="text-emerald-600"
-          bgColorClass="bg-emerald-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Pending Approval"
-          value={pendingDrivers?.count ?? pendingDrivers?.total ?? 0}
+          value={pendingDrivers?.count ?? 0}
           metric={pendingDrivers}
-          icon={Clock}
-          colorClass="text-amber-600"
-          bgColorClass="bg-amber-50"
           isLoading={isStatsLoading}
         />
         <StatCard
           title="Suspended Users"
-          value={suspendedDrivers?.count ?? suspendedDrivers?.total ?? 0}
+          value={suspendedDrivers?.count ?? 0}
           metric={suspendedDrivers}
-          icon={Ban}
-          colorClass="text-rose-600"
-          bgColorClass="bg-rose-50"
           isLoading={isStatsLoading}
         />
       </div>

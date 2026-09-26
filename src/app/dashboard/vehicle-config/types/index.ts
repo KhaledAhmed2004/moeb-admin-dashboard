@@ -36,6 +36,7 @@ export interface VehicleConfigStatsData {
   totalCategories: number;
   totalModels: {
     total: number;
+    count?: number;
     thisPeriodCount: number;
     lastPeriodCount: number;
     growth: number;

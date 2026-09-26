@@ -378,140 +378,39 @@ const MainPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <StatCard
           title="Total Users"
-          value={stats?.users?.count ?? stats?.users?.total ?? 0}
+          value={stats?.users?.count ?? 0}
           metric={stats?.users}
-          icon={Users}
-          colorClass="text-indigo-700"
-          bgColorClass="bg-indigo-50"
-          subtitle="Registered users"
           isLoading={isStatsLoading}
-          trend={stats?.users?.growth !== undefined ? `${stats.users.growth}%` : undefined}
-          trendUp={stats?.users?.growthType !== "decrease"}
-          trendBgClass={
-            stats?.users?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            stats?.users?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
 
         <Link href="/dashboard/subscriptions" className="block cursor-pointer transition-transform hover:scale-[1.01]">
           <StatCard
             title="Active Subscriptions"
-            value={stats?.activeSubscriptions?.count ?? stats?.activeSubscriptions?.total ?? 0}
+            value={stats?.activeSubscriptions?.count ?? 0}
             metric={stats?.activeSubscriptions}
-            icon={CreditCard}
-            colorClass="text-emerald-700"
-            bgColorClass="bg-emerald-50"
-            subtitle="Active subscribers • View all"
             isLoading={isStatsLoading}
-            trend={
-              stats?.activeSubscriptions?.growth !== undefined
-                ? `${stats.activeSubscriptions.growth}%`
-                : undefined
-            }
-            trendUp={stats?.activeSubscriptions?.growthType !== "decrease"}
-            trendBgClass={
-              stats?.activeSubscriptions?.growthType === "decrease"
-                ? "bg-rose-50 border border-rose-200"
-                : "bg-emerald-50 border border-emerald-200"
-            }
-            trendTextClass={
-              stats?.activeSubscriptions?.growthType === "decrease"
-                ? "text-rose-600 font-semibold"
-                : "text-emerald-600 font-semibold"
-            }
-            comparisonText="vs last period"
           />
         </Link>
 
         <StatCard
           title="Pending Chauffeurs"
-          value={stats?.pendingDrivers?.count ?? stats?.pendingDrivers?.total ?? 0}
+          value={stats?.pendingDrivers?.count ?? 0}
           metric={stats?.pendingDrivers}
-          icon={Clock}
-          colorClass="text-amber-700"
-          bgColorClass="bg-amber-50"
-          subtitle="Awaiting review"
           isLoading={isStatsLoading}
-          trend={
-            stats?.pendingDrivers?.growth !== undefined
-              ? `${stats.pendingDrivers.growth}%`
-              : undefined
-          }
-          trendUp={stats?.pendingDrivers?.growthType !== "decrease"}
-          trendBgClass={
-            stats?.pendingDrivers?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            stats?.pendingDrivers?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
 
         <StatCard
           title="Active Jobs"
-          value={stats?.activeJobs?.count ?? stats?.activeJobs?.total ?? 0}
+          value={stats?.activeJobs?.count ?? 0}
           metric={stats?.activeJobs}
-          icon={Briefcase}
-          colorClass="text-blue-700"
-          bgColorClass="bg-blue-50"
-          subtitle="Ongoing rides & deliveries"
           isLoading={isStatsLoading}
-          trend={
-            stats?.activeJobs?.growth !== undefined
-              ? `${stats.activeJobs.growth}%`
-              : undefined
-          }
-          trendUp={stats?.activeJobs?.growthType !== "decrease"}
-          trendBgClass={
-            stats?.activeJobs?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            stats?.activeJobs?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
 
-        <StatCard
+          <StatCard
           title="Marketplace Items"
-          value={stats?.totalItems?.count ?? stats?.totalItems?.total ?? 0}
+          value={stats?.totalItems?.count ?? 0}
           metric={stats?.totalItems}
-          icon={Package}
-          colorClass="text-purple-700"
-          bgColorClass="bg-purple-50"
-          subtitle="Active listings"
           isLoading={isStatsLoading}
-          trend={
-            stats?.totalItems?.growth !== undefined
-              ? `${stats.totalItems.growth}%`
-              : undefined
-          }
-          trendUp={stats?.totalItems?.growthType !== "decrease"}
-          trendBgClass={
-            stats?.totalItems?.growthType === "decrease"
-              ? "bg-rose-50 border border-rose-200"
-              : "bg-emerald-50 border border-emerald-200"
-          }
-          trendTextClass={
-            stats?.totalItems?.growthType === "decrease"
-              ? "text-rose-600 font-semibold"
-              : "text-emerald-600 font-semibold"
-          }
-          comparisonText="vs last period"
         />
       </div>
 

@@ -268,6 +268,7 @@ export function DataTable<TData, TValue>({
         isLoading={isLoading}
         handleLimitSelect={handleLimitSelect}
         handlePageClick={handlePageClick}
+        itemName="chauffeurs"
       />
     </div>
   );
