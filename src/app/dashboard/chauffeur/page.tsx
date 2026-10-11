@@ -2,13 +2,15 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, CheckCircle2, Clock, Ban } from "lucide-react";
+import { Users, CheckCircle2, Clock, Ban, Download } from "lucide-react";
+import * as XLSX from "xlsx-js-style";
 import api from "@/lib/axios";
 import { DataTable } from "./data-table";
 import { getColumns, Chauffeur } from "./columns";
 import { CustomTabs, TabOption } from "@/components/shared/CustomTabs";
 import { StatCard, MetricStat } from "@/components/shared/StatCard";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Button } from "@/components/ui/button";
 
 function extractMetric(data: unknown, ...keys: string[]): MetricStat {
   if (!data || typeof data !== "object") {
@@ -213,6 +215,93 @@ export default function ChauffeurManagementPage() {
     setPage(1);
   };
 
+  const handleExport = () => {
+    if (!applications || applications.length === 0) return;
+    
+    const dataToExport = applications.map((app) => {
+      let formattedDate = "";
+      const rawDate = app.createdAt || app.joined || "";
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          formattedDate = d.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } else {
+          formattedDate = rawDate.toString();
+        }
+      }
+
+      return {
+        "ID": app._id || app.id || "",
+        "Name": app.name || "N/A",
+        "Email": app.email || "N/A",
+        "Phone": app.phone || "N/A",
+        "Status": (app.status || "PENDING").toUpperCase(),
+        "Joined": formattedDate,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet([]);
+    
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      ["Chauffeurs Directory Export"],
+      [`Generated on: ${new Date().toLocaleDateString()}`],
+      []
+    ], { origin: "A1" });
+
+    XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: "A4", skipHeader: false });
+    
+    if (worksheet["A1"]) {
+      worksheet["A1"].s = {
+        font: { bold: true, sz: 14, color: { rgb: "1F2937" } },
+      };
+    }
+    if (worksheet["A2"]) {
+      worksheet["A2"].s = {
+        font: { italic: true, color: { rgb: "6B7280" } },
+      };
+    }
+
+    const columns = ["A", "B", "C", "D", "E", "F"];
+    columns.forEach((col) => {
+      const cell = worksheet[`${col}4`];
+      if (cell) {
+        cell.s = {
+          fill: { fgColor: { rgb: "4F46E5" } },
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "E5E7EB" } },
+            bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+            left: { style: "thin", color: { rgb: "E5E7EB" } },
+            right: { style: "thin", color: { rgb: "E5E7EB" } },
+          }
+        };
+      }
+    });
+
+    const wscols = [
+      { wch: 28 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 25 },
+    ];
+    worksheet["!cols"] = wscols;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Chauffeurs");
+    
+    const dateStr = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `chauffeurs_export_${dateStr}.xlsx`);
+  };
+
   const allCount =
     totalUsers.count ?? (statusFilter === "ALL" ? pagination?.total ?? applications.length : 0);
   const pendingCount =
@@ -265,6 +354,12 @@ export default function ChauffeurManagementPage() {
       <PageHeader 
         title="User Management"
         description="Manage, verify, and monitor all registered users and accounts"
+        action={
+          <Button variant="outline" className="gap-2 cursor-pointer" onClick={handleExport}>
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+        }
       />
 
       {/* Pure Metric Stats Row */}

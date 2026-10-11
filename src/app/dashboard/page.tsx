@@ -376,12 +376,14 @@ const MainPage = () => {
     <div className="p-6 lg:p-8 space-y-6 bg-background">
       {/* ── Stats Row (Platform Growth Summary: 5 Cards from GET /api/v1/admin/stats) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-        <StatCard
-          title="Total Users"
-          value={stats?.users?.count ?? 0}
-          metric={stats?.users}
-          isLoading={isStatsLoading}
-        />
+        <Link href="/dashboard/chauffeur" className="block cursor-pointer transition-transform hover:scale-[1.01]">
+          <StatCard
+            title="Total Users"
+            value={stats?.users?.count ?? 0}
+            metric={stats?.users}
+            isLoading={isStatsLoading}
+          />
+        </Link>
 
         <Link href="/dashboard/subscriptions" className="block cursor-pointer transition-transform hover:scale-[1.01]">
           <StatCard
@@ -392,26 +394,32 @@ const MainPage = () => {
           />
         </Link>
 
-        <StatCard
-          title="Pending Chauffeurs"
-          value={stats?.pendingDrivers?.count ?? 0}
-          metric={stats?.pendingDrivers}
-          isLoading={isStatsLoading}
-        />
-
-        <StatCard
-          title="Active Jobs"
-          value={stats?.activeJobs?.count ?? 0}
-          metric={stats?.activeJobs}
-          isLoading={isStatsLoading}
-        />
-
+        <Link href="/dashboard/chauffeur" className="block cursor-pointer transition-transform hover:scale-[1.01]">
           <StatCard
-          title="Marketplace Items"
-          value={stats?.totalItems?.count ?? 0}
-          metric={stats?.totalItems}
-          isLoading={isStatsLoading}
-        />
+            title="Pending Chauffeurs"
+            value={stats?.pendingDrivers?.count ?? 0}
+            metric={stats?.pendingDrivers}
+            isLoading={isStatsLoading}
+          />
+        </Link>
+
+        <Link href="/dashboard/jobs" className="block cursor-pointer transition-transform hover:scale-[1.01]">
+          <StatCard
+            title="Active Jobs"
+            value={stats?.activeJobs?.count ?? 0}
+            metric={stats?.activeJobs}
+            isLoading={isStatsLoading}
+          />
+        </Link>
+
+        <Link href="/dashboard/items" className="block cursor-pointer transition-transform hover:scale-[1.01]">
+          <StatCard
+            title="Marketplace Items"
+            value={stats?.totalItems?.count ?? 0}
+            metric={stats?.totalItems}
+            isLoading={isStatsLoading}
+          />
+        </Link>
       </div>
 
       {/* ── Charts Row ── */}

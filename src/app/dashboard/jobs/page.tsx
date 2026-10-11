@@ -6,11 +6,11 @@ import {
   Clock,
   Car,
   CheckCircle2,
-  RefreshCw,
   Search,
   Filter,
   X,
   Trash2,
+  Download,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -35,6 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import * as XLSX from "xlsx-js-style";
+import { toast } from "sonner";
 import {
   useAdminJobs,
   useAdminJobStats,
@@ -141,11 +143,6 @@ export default function JobManagementPage() {
     [tableActions, page, limit]
   );
 
-  const handleRefresh = () => {
-    refetchJobs();
-    refetchStats();
-  };
-
   const hasActiveFilters =
     searchTerm !== "" ||
     statusFilter !== "ALL" ||
@@ -160,6 +157,104 @@ export default function JobManagementPage() {
     setPage(1);
   };
 
+  const handleExport = () => {
+    const jobs = jobsResponse?.data;
+    if (!jobs || jobs.length === 0) {
+      toast.error("No jobs available to export.");
+      return;
+    }
+
+    const dataToExport = jobs.map((job) => {
+      let formattedDate = "";
+      const rawDate = job.createdAt || job.date || "";
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          formattedDate = d.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } else {
+          formattedDate = rawDate.toString();
+        }
+      }
+
+      return {
+        "ID": job._id || "",
+        "Pickup": job.pickup || "N/A",
+        "Dropoff": job.dropoff || "N/A",
+        "Type": job.jobType || "N/A",
+        "Payment Status": (job.paymentStatus || "UNPAID").toUpperCase(),
+        "Status": (job.status || "PENDING").toUpperCase(),
+        "Created At": formattedDate,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet([]);
+    
+    // Add a title header to the sheet
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      ["Jobs Directory Export"],
+      [`Generated on: ${new Date().toLocaleDateString()}`],
+      [] // Empty row for spacing
+    ], { origin: "A1" });
+
+    // Append the JSON data starting at row 4
+    XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: "A4", skipHeader: false });
+    
+    // Apply styling to title
+    if (worksheet["A1"]) {
+      worksheet["A1"].s = {
+        font: { bold: true, sz: 14, color: { rgb: "1F2937" } }, // Gray 800
+      };
+    }
+    if (worksheet["A2"]) {
+      worksheet["A2"].s = {
+        font: { italic: true, color: { rgb: "6B7280" } }, // Gray 500
+      };
+    }
+
+    // Apply styling to table headers (Row 4, Columns A to G)
+    const columns = ["A", "B", "C", "D", "E", "F", "G"];
+    columns.forEach((col) => {
+      const cell = worksheet[`${col}4`];
+      if (cell) {
+        cell.s = {
+          fill: { fgColor: { rgb: "4F46E5" } }, // Indigo 600
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "E5E7EB" } },
+            bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+            left: { style: "thin", color: { rgb: "E5E7EB" } },
+            right: { style: "thin", color: { rgb: "E5E7EB" } },
+          }
+        };
+      }
+    });
+
+    // Set column widths to make the sheet more readable
+    const wscols = [
+      { wch: 28 }, // ID
+      { wch: 30 }, // Pickup
+      { wch: 30 }, // Dropoff
+      { wch: 15 }, // Type
+      { wch: 15 }, // Payment Status
+      { wch: 15 }, // Status
+      { wch: 20 }, // Created At
+    ];
+    worksheet["!cols"] = wscols;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs");
+    
+    const dateStr = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `jobs_export_${dateStr}.xlsx`);
+  };
+
   return (
     <main className="p-6 lg:p-8 space-y-6 bg-background min-h-screen">
       {/* Header */}
@@ -169,15 +264,11 @@ export default function JobManagementPage() {
         action={
           <Button
             variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            className="flex items-center gap-1.5 h-9 text-xs font-semibold rounded-xl cursor-pointer"
+            className="gap-2 cursor-pointer"
+            onClick={handleExport}
           >
-            <RefreshCw
-              size={13}
-              className={isJobsLoading ? "animate-spin" : ""}
-            />
-            Refresh
+            <Download className="w-4 h-4" />
+            Export
           </Button>
         }
       />

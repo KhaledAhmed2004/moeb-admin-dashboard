@@ -334,6 +334,18 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
 
 export const getColumns = (): ColumnDef<Chauffeur>[] => [
   {
+    id: "sl",
+    header: "#",
+    cell: ({ row }) => {
+      const serial = (row.index + 1).toString().padStart(2, "0");
+      return (
+        <div className="text-[13px] font-bold text-slate-400/80 tracking-wider">
+          {serial}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "name",
     header: "Chauffeur",
     cell: ({ row }) => {
