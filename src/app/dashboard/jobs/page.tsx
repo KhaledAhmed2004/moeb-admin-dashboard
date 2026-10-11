@@ -83,6 +83,11 @@ export default function JobManagementPage() {
   const updateStatusMutation = useUpdateJobStatus();
   const deleteMutation = useDeleteJob();
 
+  const handleRefresh = () => {
+    refetchJobs();
+    refetchStats();
+  };
+
   // Tabs
   const tabOptions: TabOption[] = [
     {
