@@ -41,6 +41,8 @@ export interface Chauffeur {
   email: string;
   phone: string;
   status: string;
+  accountState?: string;
+  appState?: string;
   badge?: string | null;
   badges?: string[];
   profile?: string;
@@ -414,7 +416,17 @@ export const getColumns = (): ColumnDef<Chauffeur>[] => [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+    cell: ({ row }) => {
+      const chauffeur = row.original;
+      const isSuspended =
+        chauffeur.accountState === "SUSPENDED" ||
+        chauffeur.status === "SUSPENDED" ||
+        chauffeur.appState === "SUSPENDED";
+      const effectiveStatus = isSuspended
+        ? "SUSPENDED"
+        : (chauffeur.status || chauffeur.appState || "PENDING");
+      return <StatusBadge status={effectiveStatus} />;
+    },
   },
   {
     accessorKey: "subscription",

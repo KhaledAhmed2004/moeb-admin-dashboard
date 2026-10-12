@@ -243,6 +243,19 @@ export default function ChauffeurDetailPage() {
       toast.success(resData?.message || "User suspended successfully");
       setIsSuspendModalOpen(false);
       setSuspendNote("");
+      queryClient.setQueryData<Record<string, unknown>>(
+        ["admin-chauffeur-details", userId],
+        (oldData) => {
+          if (!oldData) return oldData;
+          const oldUser = (oldData.user || oldData) as Record<string, unknown>;
+          const updatedUser = {
+            ...oldUser,
+            accountState: "SUSPENDED",
+            status: "SUSPENDED",
+          };
+          return oldData.user ? { ...oldData, user: updatedUser } : updatedUser;
+        }
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
@@ -282,6 +295,20 @@ export default function ChauffeurDetailPage() {
     },
     onSuccess: (resData) => {
       toast.success(resData?.message || "Account reactivated successfully");
+      queryClient.setQueryData<Record<string, unknown>>(
+        ["admin-chauffeur-details", userId],
+        (oldData) => {
+          if (!oldData) return oldData;
+          const oldUser = (oldData.user || oldData) as Record<string, unknown>;
+          const updatedUser = {
+            ...oldUser,
+            accountState: "VERIFIED",
+            status: "APPROVED",
+            appState: "ACTIVE",
+          };
+          return oldData.user ? { ...oldData, user: updatedUser } : updatedUser;
+        }
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
@@ -486,6 +513,14 @@ export default function ChauffeurDetailPage() {
     (data as unknown as { accountState?: string })?.accountState ||
     "VERIFIED"
   ).toUpperCase();
+
+  const isSuspended =
+    accountState === "SUSPENDED" ||
+    appState === "SUSPENDED" ||
+    (user?.status || "").toUpperCase() === "SUSPENDED" ||
+    ((data as unknown as { status?: string })?.status || "").toUpperCase() === "SUSPENDED";
+
+  const effectiveStatus = isSuspended ? "SUSPENDED" : appState;
 
   const companyRole =
     user?.companyRole ||
@@ -881,11 +916,18 @@ export default function ChauffeurDetailPage() {
                 {/* Level 1: Primary Identity & System Status */}
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">{name}</h1>
-                  {getStatusBadge(appState)}
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-                    <ShieldCheck size={12} className="text-emerald-600" />
-                    {accountState === "VERIFIED" ? "Verified" : accountState}
-                  </span>
+                  {getStatusBadge(effectiveStatus)}
+                  {isSuspended ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-rose-200">
+                      <Ban size={12} className="text-rose-600" />
+                      Account Suspended
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                      <ShieldCheck size={12} className="text-emerald-600" />
+                      {accountState === "VERIFIED" ? "Verified" : accountState}
+                    </span>
+                  )}
                   {userBadges.map((badgeName) => (
                     <span
                       key={badgeName}
@@ -962,7 +1004,7 @@ export default function ChauffeurDetailPage() {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
-                {appState === "PENDING" && (
+                {appState === "PENDING" && !isSuspended && (
                   <>
                     <Button
                       variant="outline"
@@ -998,7 +1040,7 @@ export default function ChauffeurDetailPage() {
                   </>
                 )}
 
-                {(appState === "APPROVED" || appState === "ACTIVE" || appState === "VERIFIED") && (
+                {!isSuspended && (appState === "APPROVED" || appState === "ACTIVE" || appState === "VERIFIED") && (
                   <>
                     <Button
                       variant="outline"
@@ -1030,7 +1072,7 @@ export default function ChauffeurDetailPage() {
                   </>
                 )}
 
-                {(appState === "SUSPENDED" || appState === "REJECTED") && (
+                {(isSuspended || appState === "SUSPENDED" || appState === "REJECTED") && (
                   <Button
                     size="sm"
                     onClick={() => userId && reactivateMutation.mutate(userId)}
@@ -1048,6 +1090,38 @@ export default function ChauffeurDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Suspension Alert Banner */}
+          {isSuspended && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-900 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-lg bg-rose-100 text-rose-700 shrink-0">
+                  <Ban size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-rose-900">Chauffeur Account Suspended</p>
+                  <p className="text-[11px] text-rose-700 truncate">
+                    {(user as { blockReason?: string })?.blockReason ||
+                      user?.suspensionOrigin ||
+                      "Account access has been suspended. The user cannot receive bookings or login to the chauffeur app."}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => userId && reactivateMutation.mutate(userId)}
+                disabled={reactivateMutation.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold h-8 px-4 shrink-0 shadow-xs cursor-pointer self-start sm:self-auto"
+              >
+                {reactivateMutation.isPending ? (
+                  <Loader2 size={13} className="animate-spin mr-1.5" />
+                ) : (
+                  <CheckCircle2 size={13} className="mr-1.5" />
+                )}
+                Reactivate Account
+              </Button>
+            </div>
+          )}
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-100">

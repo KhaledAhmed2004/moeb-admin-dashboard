@@ -380,12 +380,14 @@ export function ChauffeurOverviewTab({
               </div>
             </div>
 
-            {user?.suspensionOrigin && (
+            {(user?.suspensionOrigin || (user as { blockReason?: string })?.blockReason) && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-xs">
                 <AlertTriangle size={15} className="text-rose-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold">Suspension Trigger</p>
-                  <p className="mt-0.5 text-rose-700">{user.suspensionOrigin}</p>
+                  <p className="mt-0.5 text-rose-700">
+                    {(user as { blockReason?: string })?.blockReason || user?.suspensionOrigin}
+                  </p>
                 </div>
               </div>
             )}
