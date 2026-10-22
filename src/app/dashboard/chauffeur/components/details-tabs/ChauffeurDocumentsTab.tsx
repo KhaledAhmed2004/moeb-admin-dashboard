@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +54,13 @@ export function ChauffeurDocumentsTab({
   const getDocKey = (doc: ApplicationDocument, idx: number) =>
     doc._id || (doc as { id?: string }).id || `${doc.documentType || "doc"}-${idx}`;
 
-  const getDocStatusCategory = (st?: string): "APPROVED" | "REJECTED" | "PENDING" => {
+  const getDocStatusCategory = (
+    st?: string,
+    isExpired?: boolean
+  ): "APPROVED" | "REJECTED" | "PENDING" | "EXPIRED" => {
+    if (isExpired || (st || "").toUpperCase() === "EXPIRED") {
+      return "EXPIRED";
+    }
     const s = (st || "").toUpperCase();
     if (s.includes("APPROV") || s.includes("ACTIVE") || s === "VERIFIED" || s === "CLEAN") {
       return "APPROVED";
@@ -65,7 +72,17 @@ export function ChauffeurDocumentsTab({
   };
 
   const pendingCount = useMemo(() => {
-    return documents.filter((d) => getDocStatusCategory(d.status) === "PENDING").length;
+    return documents.filter((d) => {
+      const isExp = d.expiryDate ? new Date(d.expiryDate).getTime() < Date.now() : false;
+      return getDocStatusCategory(d.status, isExp) === "PENDING";
+    }).length;
+  }, [documents]);
+
+  const expiredCount = useMemo(() => {
+    return documents.filter((d) => {
+      const isExp = d.expiryDate ? new Date(d.expiryDate).getTime() < Date.now() : false;
+      return isExp || (d.status || "").toUpperCase() === "EXPIRED";
+    }).length;
   }, [documents]);
 
   if (documents.length === 0) {
@@ -107,16 +124,27 @@ export function ChauffeurDocumentsTab({
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary">
               {selectedDocumentIds.length} Selected
             </span>
-          ) : pendingCount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              {pendingCount} Pending Review
-            </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              All Approved
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  {pendingCount} Pending Review
+                </span>
+              )}
+              {expiredCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+                  <AlertTriangle size={11} className="text-rose-500" />
+                  {expiredCount} Expired
+                </span>
+              )}
+              {pendingCount === 0 && expiredCount === 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  All Approved & Valid
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -159,20 +187,20 @@ export function ChauffeurDocumentsTab({
             ? selectedDocumentIds.includes((doc as { id?: string }).id!)
             : false);
 
-        const statusCat = getDocStatusCategory(doc.status);
-        const fileUrl = resolveFileUrl(doc.storageKey);
-        const isPdf = Boolean(
-          isPdfFile(doc.storageKey, doc.originalFilename) ||
-          (doc.mimeType && doc.mimeType.includes("pdf"))
-        );
-
-        // Expiry logic
+        // Expiry logic calculated first
         const expiryDateObj = doc.expiryDate ? new Date(doc.expiryDate) : null;
         const isExpired = expiryDateObj ? expiryDateObj.getTime() < Date.now() : false;
         const daysToExpiry = expiryDateObj
           ? Math.ceil((expiryDateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
           : null;
         const isExpiringSoon = daysToExpiry !== null && daysToExpiry > 0 && daysToExpiry <= 30;
+
+        const statusCat = getDocStatusCategory(doc.status, isExpired);
+        const fileUrl = resolveFileUrl(doc.storageKey);
+        const isPdf = Boolean(
+          isPdfFile(doc.storageKey, doc.originalFilename) ||
+          (doc.mimeType && doc.mimeType.includes("pdf"))
+        );
 
         const openPreview = () => {
           if (!fileUrl) return;
@@ -220,7 +248,14 @@ export function ChauffeurDocumentsTab({
                     {formatDocName(doc.documentType)}
                   </h5>
 
-                  {/* Refined, low-noise status badge */}
+                  {/* Refined, low-noise status badge (mutually exclusive) */}
+                  {statusCat === "EXPIRED" && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+                      <AlertTriangle size={12} className="text-rose-500" />
+                      Expired
+                    </span>
+                  )}
+
                   {statusCat === "APPROVED" && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -239,13 +274,6 @@ export function ChauffeurDocumentsTab({
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                       Pending Review
-                    </span>
-                  )}
-
-                  {isExpired && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-800">
-                      <AlertTriangle size={11} />
-                      Expired
                     </span>
                   )}
                 </div>
@@ -322,9 +350,21 @@ export function ChauffeurDocumentsTab({
                 <DropdownMenuContent align="end" className="w-40 text-xs">
                   {statusCat !== "APPROVED" && (
                     <DropdownMenuItem
-                      onClick={() => handleApproveDocuments([docKey])}
-                      disabled={isDocApproving}
-                      className="cursor-pointer text-emerald-600 font-medium flex items-center gap-2"
+                      onClick={() => {
+                        if (isExpired) {
+                          toast.error(
+                            "Cannot approve an expired document. Please request an updated document."
+                          );
+                          return;
+                        }
+                        handleApproveDocuments([docKey]);
+                      }}
+                      disabled={isDocApproving || isExpired}
+                      className={`font-medium flex items-center gap-2 ${
+                        isExpired
+                          ? "opacity-50 cursor-not-allowed text-gray-400"
+                          : "cursor-pointer text-emerald-600"
+                      }`}
                     >
                       <Check size={13} />
                       Approve Document

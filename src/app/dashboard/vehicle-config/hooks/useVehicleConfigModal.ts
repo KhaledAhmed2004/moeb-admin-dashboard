@@ -27,7 +27,7 @@ export function useVehicleConfigModal({
   const configId = config?._id || config?.id;
 
   const [vehicleType, setVehicleType] = useState<string>(
-    config?.vehicleType || "Sedan"
+    config?.vehicleType || ""
   );
   const [makesAndModels, setMakesAndModels] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState<string>("");
@@ -64,11 +64,11 @@ export function useVehicleConfigModal({
   if (config !== prevConfig) {
     setPrevConfig(config);
     if (config) {
-      setVehicleType(config.vehicleType || "Sedan");
+      setVehicleType(config.vehicleType || "");
       setMakesAndModels(config.makesAndModels || []);
       setStatus(config.status || "ACTIVE");
     } else {
-      setVehicleType("Sedan");
+      setVehicleType("");
       setMakesAndModels([]);
       setStatus("ACTIVE");
     }
@@ -107,6 +107,12 @@ export function useVehicleConfigModal({
   };
 
   const hasChanges = useMemo(() => {
+    if (!isEdit) {
+      return Boolean(vehicleType.trim().length > 0 || makesAndModels.length > 0);
+    }
+    const originalType = detailResponse?.data?.vehicleType || config?.vehicleType || "";
+    if (vehicleType.trim().toLowerCase() !== originalType.trim().toLowerCase()) return true;
+
     const originalModels =
       detailResponse?.data?.makesAndModels || config?.makesAndModels || [];
     if (makesAndModels.length !== originalModels.length) return true;
@@ -114,25 +120,29 @@ export function useVehicleConfigModal({
     const currentSorted = [...makesAndModels].sort();
     const originalSorted = [...originalModels].sort();
     return JSON.stringify(currentSorted) !== JSON.stringify(originalSorted);
-  }, [makesAndModels, detailResponse?.data?.makesAndModels, config?.makesAndModels]);
+  }, [isEdit, vehicleType, makesAndModels, detailResponse?.data, config]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const targetId = config?._id || config?.id;
+      const cleanType = vehicleType.trim();
 
-      if (!isEdit && !vehicleType) {
-        throw new Error("Vehicle category type is required");
+      if (!cleanType) {
+        throw new Error("Vehicle category type name is required");
       }
       if (makesAndModels.length === 0) {
         throw new Error("At least one permitted make & model is required");
       }
 
       if (isEdit && targetId) {
-        const updatePayload = { makesAndModels };
+        const updatePayload = {
+          vehicleType: cleanType,
+          makesAndModels,
+        };
         return await updateVehicleConfig(targetId, updatePayload);
       } else {
         const createPayload = {
-          vehicleType,
+          vehicleType: cleanType,
           makesAndModels,
           status,
         };

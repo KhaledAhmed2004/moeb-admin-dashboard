@@ -8,6 +8,8 @@ import {
   IconDashboard,
   IconMapPin,
   IconMessage,
+  IconMessages,
+  IconSpeakerphone,
   IconNotes,
   IconPackage,
   IconUsersGroup,
@@ -71,6 +73,11 @@ const data = {
       icon: IconMessage,
     },
     {
+      name: "Chat Groups",
+      url: "/dashboard/chat-groups",
+      icon: IconMessages,
+    },
+    {
       name: "Legal Policy",
       url: "/dashboard/terms-and-condition",
       icon: IconNotes,
@@ -79,6 +86,11 @@ const data = {
       name: "Service Area",
       url: "/dashboard/service-area",
       icon: IconMapPin,
+    },
+    {
+      name: "Broadcast Notifications",
+      url: "/dashboard/broadcast-notifications",
+      icon: IconSpeakerphone,
     },
   ],
   user: {

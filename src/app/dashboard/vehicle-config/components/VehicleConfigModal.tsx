@@ -34,6 +34,8 @@ export function VehicleConfigModal({
   });
 
   const {
+    vehicleType,
+    setVehicleType,
     makesAndModels,
     modelInput,
     setModelInput,
@@ -62,11 +64,11 @@ export function VehicleConfigModal({
           <DialogHeader className="p-6 pb-4 border-b bg-white">
             <DialogTitle className="text-lg font-bold text-gray-900">
               {isEdit
-                ? `Edit ${config?.vehicleType} Configuration`
-                : "Add Vehicle Configuration"}
+                ? `Edit ${config?.vehicleType || "Vehicle"} Configuration`
+                : "Add New Vehicle Configuration"}
             </DialogTitle>
-            <DialogDescription className="sr-only">
-              Manage whitelisted vehicle models for this category
+            <DialogDescription className="text-xs text-gray-500">
+              Define the vehicle category name and approved make & model whitelist for driver onboarding.
             </DialogDescription>
           </DialogHeader>
 
@@ -81,8 +83,33 @@ export function VehicleConfigModal({
               </div>
             ) : (
               <>
+                {/* Vehicle Category Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Vehicle Category / Type <span className="text-rose-500">*</span>
+                  </label>
+                  <CustomInput
+                    placeholder="e.g. Sedan, SUV, Sprinter, Luxury Van, Electric..."
+                    value={vehicleType}
+                    onChange={(e) => setVehicleType(e.target.value)}
+                    className="h-10 text-xs bg-zinc-50 border-gray-200"
+                  />
+                </div>
+
                 {/* Permitted Makes & Models Catalog */}
-                <div className="space-y-4">
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-700">
+                      Permitted Makes & Models (Whitelist) <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11px] text-gray-400 font-medium">
+                      {makesAndModels.length} {makesAndModels.length === 1 ? "model" : "models"} added
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Drivers onboarding under this category can only select from these approved vehicle models.
+                  </p>
+
                   {/* Manual Add Model Input */}
                   <div className="flex items-center gap-2 pt-1">
                     <CustomInput
@@ -95,13 +122,13 @@ export function VehicleConfigModal({
                           handleAddModel();
                         }
                       }}
-                      className="h-9 text-xs bg-zinc-50 border-gray-200"
+                      className="h-10 text-xs bg-zinc-50 border-gray-200"
                     />
                     <Button
                       type="button"
                       size="sm"
                       onClick={handleAddModel}
-                      className="h-9 px-4 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                      className="h-10 px-4 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer shrink-0"
                     >
                       <Plus size={14} className="mr-1" />
                       Add
@@ -156,6 +183,7 @@ export function VehicleConfigModal({
               disabled={
                 saveMutation.isPending ||
                 isFetchingDetail ||
+                !vehicleType.trim() ||
                 makesAndModels.length === 0 ||
                 (isEdit && !hasChanges)
               }

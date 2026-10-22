@@ -708,16 +708,44 @@ export function ChauffeurDetailModal({
   };
 
   const handleApproveDocuments = async (overrideIds?: string[]) => {
-    const targetIds =
+    const rawTargetIds =
       overrideIds && overrideIds.length > 0
         ? overrideIds
         : selectedDocumentIds.length > 0
         ? selectedDocumentIds
         : documents.map((doc, idx) => getDocumentIdentifier(doc, idx));
 
-    if (targetIds.length === 0) {
+    if (rawTargetIds.length === 0) {
       toast.info("No documents selected to approve");
       return;
+    }
+
+    // Guard: Identify expired documents and prevent approval
+    const expiredDocIds = new Set<string>();
+    documents.forEach((doc, idx) => {
+      const dId = getDocumentIdentifier(doc, idx);
+      const isExpired = doc.expiryDate ? new Date(doc.expiryDate).getTime() < Date.now() : false;
+      if (isExpired || (doc.status || "").toUpperCase() === "EXPIRED") {
+        expiredDocIds.add(dId);
+        if (doc._id) expiredDocIds.add(doc._id);
+        if ((doc as { id?: string }).id) expiredDocIds.add((doc as { id?: string }).id!);
+      }
+    });
+
+    const targetIds = rawTargetIds.filter((id) => !expiredDocIds.has(id));
+    const expiredCount = rawTargetIds.length - targetIds.length;
+
+    if (targetIds.length === 0) {
+      toast.error(
+        "Cannot approve expired document(s). Please request updated documents."
+      );
+      return;
+    }
+
+    if (expiredCount > 0) {
+      toast.warning(
+        `Skipped ${expiredCount} expired document(s). Only valid documents will be approved.`
+      );
     }
 
     setIsDocApproving(true);

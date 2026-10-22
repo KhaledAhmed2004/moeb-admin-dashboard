@@ -16,6 +16,11 @@ export const updateVehicleConfig = async (id: string, payload: Partial<VehicleCo
   return res.data;
 };
 
+export const deleteVehicleConfig = async (id: string) => {
+  const res = await api.delete(`/vehicle-configs/${id}`);
+  return res.data;
+};
+
 export const getVehicleConfigs = async (page: number, limit: number) => {
   try {
     const res = await api.get("/vehicle-configs", {

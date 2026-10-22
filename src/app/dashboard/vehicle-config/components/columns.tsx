@@ -1,13 +1,14 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { VehicleConfig } from "../types";
 
 export interface VehicleConfigTableActions {
   onView: (config: VehicleConfig) => void;
   onEdit: (config: VehicleConfig) => void;
+  onDelete?: (config: VehicleConfig) => void;
 }
 
 export const getColumns = (
@@ -76,6 +77,20 @@ export const getColumns = (
           >
             <Pencil size={15} />
           </button>
+
+          {/* Delete Dialog */}
+          {actions.onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.onDelete?.(config);
+              }}
+              className="text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors p-2 rounded-lg inline-flex items-center justify-center cursor-pointer"
+              title="Delete Configuration"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       );
     },
