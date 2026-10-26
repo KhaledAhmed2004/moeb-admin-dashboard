@@ -33,6 +33,9 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchKey?: string;
+  searchPlaceholder?: string;
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
   renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   actionSlot?: React.ReactNode;
   isLoading?: boolean;
@@ -48,6 +51,9 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   searchKey,
+  searchPlaceholder,
+  searchTerm,
+  onSearchChange,
   renderSubComponent,
   actionSlot,
   isLoading = false,
@@ -165,6 +171,9 @@ export function DataTable<TData, TValue>({
       <DataTableToolbar
         table={table}
         searchKey={searchKey}
+        searchPlaceholder={searchPlaceholder}
+        searchTerm={searchTerm}
+        onSearchChange={onSearchChange}
         actionSlot={actionSlot}
       />
 

@@ -8,16 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  User,
-  Clock,
-  Briefcase,
-  TrendingUp,
-  Users,
-  CreditCard,
-  Package,
-  Activity,
-} from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -71,21 +62,6 @@ export interface AdminDashboardStatsResponse {
   data: AdminDashboardStatsData;
 }
 
-export interface AdminRecentActivityItem {
-  id: string;
-  type: string;
-  title: string;
-  description?: string;
-  timestamp: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface AdminRecentActivitiesResponse {
-  success: boolean;
-  message?: string;
-  data: AdminRecentActivityItem[];
-}
-
 export interface MonthlyTrendDataPoint {
   label: string;
   totalRevenue?: number;
@@ -102,125 +78,6 @@ export interface AdminMonthlyTrendsResponse {
   statusCode?: number;
   message?: string;
   data: AdminMonthlyTrendsData;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatRelativeTime(dateString?: string): string {
-  if (!dateString) return "";
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-
-    if (diffMs < 60 * 1000) {
-      return "Just now";
-    }
-
-    const diffMins = Math.floor(diffMs / (60 * 1000));
-    if (diffMins < 60) {
-      return `${diffMins} ${diffMins === 1 ? "min" : "mins"} ago`;
-    }
-
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) {
-      return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
-    }
-
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) {
-      return "Yesterday";
-    }
-    if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    }
-
-    const diffWeeks = Math.floor(diffDays / 7);
-    if (diffWeeks < 4) {
-      return `${diffWeeks} ${diffWeeks === 1 ? "week" : "weeks"} ago`;
-    }
-
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths < 12) {
-      return `${diffMonths} ${diffMonths === 1 ? "month" : "months"} ago`;
-    }
-
-    const diffYears = Math.floor(diffDays / 365);
-    return `${diffYears} ${diffYears === 1 ? "year" : "years"} ago`;
-  } catch {
-    return dateString;
-  }
-}
-
-function getActivityConfig(type?: string) {
-  const normalizedType = (type || "").toUpperCase();
-
-  if (
-    normalizedType.includes("ITEM") ||
-    normalizedType.includes("LISTING") ||
-    normalizedType.includes("MARKETPLACE")
-  ) {
-    return {
-      icon: Package,
-      iconClass: "text-emerald-600",
-      bgClass: "bg-emerald-100",
-    };
-  }
-
-  if (
-    normalizedType.includes("JOB") ||
-    normalizedType.includes("RIDE") ||
-    normalizedType.includes("DELIVERY") ||
-    normalizedType.includes("OFFER")
-  ) {
-    return {
-      icon: Briefcase,
-      iconClass: "text-blue-600",
-      bgClass: "bg-blue-100",
-    };
-  }
-
-  if (
-    normalizedType.includes("CHAUFFEUR") ||
-    normalizedType.includes("DRIVER")
-  ) {
-    return {
-      icon: Clock,
-      iconClass: "text-amber-600",
-      bgClass: "bg-amber-100",
-    };
-  }
-
-  if (
-    normalizedType.includes("USER") ||
-    normalizedType.includes("REGISTER") ||
-    normalizedType.includes("ACCOUNT")
-  ) {
-    return {
-      icon: User,
-      iconClass: "text-purple-600",
-      bgClass: "bg-purple-100",
-    };
-  }
-
-  if (
-    normalizedType.includes("SUBSCRIPTION") ||
-    normalizedType.includes("PAYMENT")
-  ) {
-    return {
-      icon: CreditCard,
-      iconClass: "text-indigo-600",
-      bgClass: "bg-indigo-100",
-    };
-  }
-
-  return {
-    icon: Activity,
-    iconClass: "text-slate-600",
-    bgClass: "bg-slate-100",
-  };
 }
 
 // ─── Chart Configuration ─────────────────────────────────────────────────────
@@ -260,30 +117,6 @@ const MainPage = () => {
   });
 
   // Query recent platform activities: GET /api/v1/admin/recent-activities?limit=5
-  const {
-    data: activitiesResponse,
-    isLoading: isActivitiesLoading,
-  } = useQuery<AdminRecentActivitiesResponse>({
-    queryKey: ["admin-recent-activities", 5],
-    queryFn: async () => {
-      try {
-        const response = await api.get("/admin/recent-activities", {
-          params: { limit: 5 },
-        });
-        return response.data;
-      } catch (err: unknown) {
-        const axiosErr = err as { response?: { status?: number } };
-        if (axiosErr.response?.status === 404) {
-          const response = await api.get("/api/v1/admin/recent-activities", {
-            params: { limit: 5 },
-          });
-          return response.data;
-        }
-        throw err;
-      }
-    },
-    refetchInterval: 30000,
-  });
 
   // Query monthly time trends: GET /api/v1/admin/monthly-trends?year=...&range=...&metric=...
   const currentYear = new Date().getFullYear();
@@ -324,11 +157,6 @@ const MainPage = () => {
 
   const stats = statsResponse?.data;
 
-  const activities = useMemo(() => {
-    const rawData = activitiesResponse?.data;
-    if (!Array.isArray(rawData)) return [];
-    return rawData.slice(0, 5);
-  }, [activitiesResponse]);
 
   const monthlyChartData = useMemo(() => {
     const rawJobTrends = trendsResponse?.data?.jobTrends || [];
@@ -423,10 +251,9 @@ const MainPage = () => {
       </div>
 
       {/* ── Charts Row ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="w-full">
         {/* Monthly Trends Chart using shadcn/ui */}
-        <div className="xl:col-span-2 flex flex-col gap-6">
-          <Card className="border-0 shadow-sm bg-white rounded-xl ring-1 ring-black/5 flex-1 flex flex-col justify-between py-6">
+        <Card className="border-0 shadow-sm bg-white rounded-xl ring-1 ring-black/5 flex flex-col justify-between py-6">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 px-6 gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-purple-100 rounded-lg text-purple-600">
@@ -567,77 +394,6 @@ const MainPage = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Right Column */}
-        <div className="flex flex-col">
-          {/* Recent Activity */}
-          <Card className="border-0 shadow-sm bg-white rounded-xl p-6 flex-1 ring-1 ring-black/5 flex flex-col h-full">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-lg text-foreground">
-                Recent Activity
-              </h3>
-            </div>
-
-            {isActivitiesLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex justify-between items-center p-3 rounded-xl bg-gray-50/80 border border-gray-100 animate-pulse"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0 pr-3">
-                      <div className="w-9 h-9 rounded-lg bg-gray-200 flex-shrink-0" />
-                      <div className="space-y-1.5 flex-1 min-w-0">
-                        <div className="h-3.5 bg-gray-200 rounded w-2/4" />
-                        <div className="h-2.5 bg-gray-200 rounded w-3/4" />
-                      </div>
-                    </div>
-                    <div className="h-3 bg-gray-200 rounded w-14 flex-shrink-0" />
-                  </div>
-                ))}
-              </div>
-            ) : activities.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-                <Clock className="w-8 h-8 text-gray-300 mb-2" />
-                <p className="text-sm font-medium text-gray-600">No recent activities</p>
-                <p className="text-xs text-gray-400">Recent platform events will appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activities.map((activity) => {
-                  const { icon: ActivityIcon, iconClass, bgClass } = getActivityConfig(activity.type);
-                  return (
-                    <div
-                      key={activity.id}
-                      className="flex justify-between items-center p-3 rounded-xl bg-gray-50/80 hover:bg-gray-100/80 border border-gray-100 transition-colors group"
-                      title={activity.timestamp ? new Date(activity.timestamp).toLocaleString() : undefined}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 pr-3">
-                        <div className={`p-2.5 ${bgClass} ${iconClass} rounded-lg flex-shrink-0`}>
-                          <ActivityIcon size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {activity.title}
-                          </p>
-                          {activity.description && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {activity.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap flex-shrink-0">
-                        {formatRelativeTime(activity.timestamp)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-        </div>
       </div>
     </div>
   );

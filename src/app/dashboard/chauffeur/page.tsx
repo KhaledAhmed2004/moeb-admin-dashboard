@@ -11,6 +11,7 @@ import { CustomTabs, TabOption } from "@/components/shared/CustomTabs";
 import { StatCard, MetricStat } from "@/components/shared/StatCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
+import { useDebounce } from "@/hooks/useDebounce";
 
 function extractMetric(data: unknown, ...keys: string[]): MetricStat {
   if (!data || typeof data !== "object") {
@@ -61,8 +62,15 @@ function extractMetric(data: unknown, ...keys: string[]): MetricStat {
 
 export default function ChauffeurManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
+
+  // Reset pagination to first page when search query or filter tab changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm, statusFilter]);
 
   // Fetch Users Statistics: GET /api/v1/users/stats
   const { data: statsData, isLoading: isStatsLoading } = useQuery({
@@ -90,7 +98,13 @@ export default function ChauffeurManagementPage() {
 
   const { data: applicationsResult, isLoading: isApplicationsLoading } =
     useQuery({
-      queryKey: ["admin-chauffeur-applications", statusFilter, page, limit],
+      queryKey: [
+        "admin-chauffeur-applications",
+        statusFilter,
+        debouncedSearchTerm,
+        page,
+        limit,
+      ],
       queryFn: async () => {
         const params: Record<string, string | number> = {
           page,
@@ -98,6 +112,9 @@ export default function ChauffeurManagementPage() {
         };
         if (statusFilter !== "ALL") {
           params.status = statusFilter;
+        }
+        if (debouncedSearchTerm.trim()) {
+          params.searchTerm = debouncedSearchTerm.trim();
         }
 
         const response = await api.get("/user", { params });
@@ -212,6 +229,11 @@ export default function ChauffeurManagementPage() {
 
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);
+    setPage(1);
+  };
+
+  const handleSearchChange = (newSearch: string) => {
+    setSearchTerm(newSearch);
     setPage(1);
   };
 
@@ -403,6 +425,9 @@ export default function ChauffeurManagementPage() {
           data={applications}
           isLoading={isApplicationsLoading}
           searchKey="name"
+          searchPlaceholder="Search by name, email, phone..."
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
           page={page}
           limit={limit}
           total={pagination?.total ?? applications.length}

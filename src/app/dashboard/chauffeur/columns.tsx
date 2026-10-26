@@ -176,11 +176,27 @@ const ActionCell = ({ chauffeur }: { chauffeur: Chauffeur }) => {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const res = await api.patch(`/admin/users/${chauffeurId}`, {
-        name,
-        email,
-      });
-      return res.data;
+      try {
+        const res = await api.patch(`/admin/users/${chauffeurId}`, {
+          name,
+          email,
+        });
+        return res.data;
+      } catch (err: unknown) {
+        try {
+          const res = await api.patch(`/user/${chauffeurId}`, {
+            name,
+            email,
+          });
+          return res.data;
+        } catch {
+          const res = await api.patch(`/users/${chauffeurId}`, {
+            name,
+            email,
+          });
+          return res.data;
+        }
+      }
     },
     onSuccess: () => {
       toast.success("User profile updated successfully!");
