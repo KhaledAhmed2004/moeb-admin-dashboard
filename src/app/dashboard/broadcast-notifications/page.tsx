@@ -86,6 +86,34 @@ export default function BroadcastNotificationsPage() {
   const [page, setPage] = useState(1);
   const limit = 10;
 
+  // Broadcast Deletion state
+  const [broadcastToDelete, setBroadcastToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (broadcastId: string) =>
+      BroadcastService.deleteBroadcast(broadcastId),
+    onSuccess: (data) => {
+      toast.success("Broadcast message deleted successfully", {
+        description: `Removed from history and ${data?.data?.deletedNotificationsCount ?? 0} user inboxes.`,
+      });
+      setBroadcastToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["broadcast-history"] });
+      queryClient.invalidateQueries({ queryKey: ["broadcast-stats"] });
+    },
+    onError: (err: any) => {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to delete broadcast message";
+      toast.error("Failed to delete broadcast", { description: msg });
+      setBroadcastToDelete(null);
+    },
+  });
+
   // 1. Fetch Stats
   const { data: stats, isLoading: isStatsLoading } = useQuery({
     queryKey: ["broadcast-stats"],
@@ -733,6 +761,7 @@ export default function BroadcastNotificationsPage() {
                   <th className="py-3 px-4 text-center">Recipients</th>
                   <th className="py-3 px-4 text-center">Push Tokens</th>
                   <th className="py-3 px-4">Dispatched By</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-800">
@@ -744,6 +773,10 @@ export default function BroadcastNotificationsPage() {
                     hour: "2-digit",
                     minute: "2-digit",
                   });
+                  const itemCreatedAt = new Date(item.createdAt).getTime();
+                  const ageHours = (Date.now() - itemCreatedAt) / (1000 * 60 * 60);
+                  const canDelete = ageHours <= 72;
+                  const hoursLeft = Math.max(1, Math.round(72 - ageHours));
 
                   return (
                     <tr
@@ -841,6 +874,25 @@ export default function BroadcastNotificationsPage() {
 
                       <td className="py-3.5 px-4 whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                         {item.sentBy?.name || "Admin"}
+                      </td>
+
+                      <td className="py-3.5 px-4 whitespace-nowrap text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setBroadcastToDelete({
+                              id: item._id,
+                              title: item.title,
+                            })
+                          }
+                          className="h-8 px-2.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold gap-1.5 cursor-pointer transition-colors border border-rose-200/50 dark:border-rose-900/40 shadow-2xs"
+                          title="Delete this broadcast"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -942,6 +994,69 @@ export default function BroadcastNotificationsPage() {
               className="rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
             >
               {sendMutation.isPending ? "Transmitting..." : "Yes, Broadcast to All Users"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Broadcast Confirmation Dialog */}
+      <AlertDialog
+        open={Boolean(broadcastToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setBroadcastToDelete(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <Trash2 className="h-5 w-5" />
+              Delete Broadcast Message?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-xs pt-1 text-muted-foreground">
+                <p>
+                  Are you sure you want to delete{" "}
+                  <strong className="text-zinc-900 dark:text-zinc-100">
+                    &ldquo;{broadcastToDelete?.title}&rdquo;
+                  </strong>
+                  ?
+                </p>
+                <div className="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/40 text-rose-800 dark:text-rose-300 space-y-1">
+                  <p className="font-semibold text-rose-900 dark:text-rose-200">
+                    Important Notice:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                    <li>This broadcast will be permanently removed from broadcast history.</li>
+                    <li>It will immediately be deleted from all user inboxes across mobile and web.</li>
+                  </ul>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel
+              disabled={deleteMutation.isPending}
+              className="rounded-xl text-xs cursor-pointer"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (broadcastToDelete?.id) {
+                  deleteMutation.mutate(broadcastToDelete.id);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="rounded-xl text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Broadcast"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

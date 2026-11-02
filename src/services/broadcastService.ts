@@ -79,4 +79,14 @@ export const BroadcastService = {
       return [];
     }
   },
+
+  // Delete broadcast message within 72 hours
+  deleteBroadcast: async (broadcastId: string) => {
+    const res = await api.delete<ApiResponse<{
+      deleted: boolean;
+      broadcastId: string;
+      deletedNotificationsCount: number;
+    }>>(`/notifications/broadcast/${broadcastId}`);
+    return res.data;
+  },
 };

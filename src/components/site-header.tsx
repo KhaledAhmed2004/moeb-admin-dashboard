@@ -13,13 +13,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { IconBell } from "@tabler/icons-react";
 
 const routeConfig: Record<string, { title: string }> = {
   "/dashboard": { title: "Dashboard" },
@@ -35,7 +28,6 @@ const routeConfig: Record<string, { title: string }> = {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const notifications = { data: [1, 2] };
 
   const currentRoute = routeConfig[pathname] || {
     title:
@@ -80,43 +72,6 @@ export function SiteHeader() {
               )}
             </BreadcrumbList>
           </Breadcrumb>
-        </div>
-
-        {/* Right Section: Notification Bell Only */}
-        <div className="flex items-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="relative cursor-pointer">
-                <div className="w-10 h-10 rounded-full bg-white border shadow-xs flex items-center justify-center text-primary hover:bg-gray-50 transition-colors">
-                  {notifications.data.length > 0 && (
-                    <div className="w-4 h-4 rounded-full bg-primary absolute -top-1 -right-1 border-2 border-white flex items-center justify-center">
-                      <span className="text-[9px] text-white font-bold">
-                        {notifications.data.length}
-                      </span>
-                    </div>
-                  )}
-                  <IconBell size={20} />
-                </div>
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[300px] rounded-xl shadow-lg border">
-              <div className="px-4 py-3 border-b">
-                <h4 className="font-bold text-sm text-foreground">Notifications</h4>
-              </div>
-              <div className="p-4 text-center text-xs text-muted-foreground">
-                You have {notifications.data.length} new notifications
-              </div>
-              <DropdownMenuSeparator />
-              <div className="p-2 text-center">
-                <Link
-                  href="/dashboard"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  View all
-                </Link>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>
