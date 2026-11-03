@@ -60,6 +60,10 @@ export interface ApplicationDocument {
   reviewedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  /** True when this upload replaces an expired document and still needs admin review */
+  isRenewal?: boolean;
+  /** Expiry date of the old (expired) copy this upload replaces */
+  previousExpiryDate?: string | null;
 }
 
 export interface ApplicationServiceArea {

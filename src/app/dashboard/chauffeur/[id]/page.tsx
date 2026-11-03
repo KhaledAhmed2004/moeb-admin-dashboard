@@ -161,6 +161,7 @@ export default function ChauffeurDetailPage() {
       toast.success(resData?.message || "Chauffeur approved successfully");
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
     },
     onError: (err: unknown) => {
@@ -748,7 +749,8 @@ export default function ChauffeurDetailPage() {
           const updatedDocs = currentDocs.map((doc, idx) => {
             const dId = getDocumentIdentifier(doc, idx);
             if (targetIds.includes(dId) || (doc._id && targetIds.includes(doc._id))) {
-              return { ...doc, status: "APPROVED" };
+              // Approval resolves a pending renewal, so clear the tag immediately
+              return { ...doc, status: "APPROVED", isRenewal: false };
             }
             return doc;
           });
@@ -765,6 +767,7 @@ export default function ChauffeurDetailPage() {
 
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats"] });
     } catch {
       toast.error("Failed to approve documents");
     } finally {
@@ -830,6 +833,7 @@ export default function ChauffeurDetailPage() {
       setIsDocRejectModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-details", userId] });
       queryClient.invalidateQueries({ queryKey: ["admin-chauffeur-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats"] });
     } catch {
       toast.error("Failed to reject documents");
     } finally {

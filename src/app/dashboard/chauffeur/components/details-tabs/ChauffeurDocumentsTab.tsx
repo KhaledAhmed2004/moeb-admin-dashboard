@@ -9,6 +9,7 @@ import {
   Clock,
   AlertTriangle,
   MoreHorizontal,
+  FileClock,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -78,6 +79,15 @@ export function ChauffeurDocumentsTab({
     }).length;
   }, [documents]);
 
+  // Re-submitted expired documents still awaiting review
+  const renewalCount = useMemo(
+    () =>
+      documents.filter(
+        (d) => Boolean(d.isRenewal) && getDocStatusCategory(d.status) === "PENDING"
+      ).length,
+    [documents]
+  );
+
   const expiredCount = useMemo(() => {
     return documents.filter((d) => {
       const isExp = d.expiryDate ? new Date(d.expiryDate).getTime() < Date.now() : false;
@@ -126,6 +136,12 @@ export function ChauffeurDocumentsTab({
             </span>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
+              {renewalCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+                  <FileClock size={11} className="text-rose-500" />
+                  {renewalCount} Renewed (was expired)
+                </span>
+              )}
               {pendingCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -196,6 +212,10 @@ export function ChauffeurDocumentsTab({
         const isExpiringSoon = daysToExpiry !== null && daysToExpiry > 0 && daysToExpiry <= 30;
 
         const statusCat = getDocStatusCategory(doc.status, isExpired);
+        const isRenewalPending = Boolean(doc.isRenewal) && statusCat === "PENDING";
+        const previousExpiryObj = doc.previousExpiryDate
+          ? new Date(doc.previousExpiryDate)
+          : null;
         const fileUrl = resolveFileUrl(doc.storageKey);
         const isPdf = Boolean(
           isPdfFile(doc.storageKey, doc.originalFilename) ||
@@ -220,6 +240,8 @@ export function ChauffeurDocumentsTab({
             className={`p-4 rounded-xl border bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all ${
               isChecked
                 ? "ring-2 ring-primary border-primary/50 bg-primary/[0.015]"
+                : isRenewalPending
+                ? "border-rose-300 bg-rose-50/30 hover:border-rose-400"
                 : "border-gray-200/80 hover:border-gray-300"
             }`}
           >
@@ -276,7 +298,27 @@ export function ChauffeurDocumentsTab({
                       Pending Review
                     </span>
                   )}
+
+                  {isRenewalPending && (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80"
+                      title="The chauffeur uploaded this to replace an expired document"
+                    >
+                      <FileClock size={12} className="text-rose-500" />
+                      Renewed — was expired
+                    </span>
+                  )}
                 </div>
+
+                {/* Renewal context: old expiry vs. new expiry */}
+                {isRenewalPending && previousExpiryObj && (
+                  <div className="text-xs font-medium text-rose-700">
+                    Old copy expired on {previousExpiryObj.toLocaleDateString()}
+                    {expiryDateObj && !isExpired && (
+                      <> → new expiry {expiryDateObj.toLocaleDateString()}</>
+                    )}
+                  </div>
+                )}
 
                 {/* Metadata: Expiry & Update Timestamps */}
                 <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">

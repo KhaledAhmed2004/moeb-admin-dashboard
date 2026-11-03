@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, CheckCircle2, Clock, Ban, Download } from "lucide-react";
+import { Users, CheckCircle2, Clock, Ban, Download, FileClock } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import api from "@/lib/axios";
 import { DataTable } from "./data-table";
@@ -193,6 +193,8 @@ export default function ChauffeurManagementPage() {
     "suspendedChauffeurs",
     "suspended"
   );
+  // Chauffeurs who re-submitted an expired document awaiting review
+  const documentRenewals = extractMetric(statsData, "documentRenewals");
 
   const statsRecord = statsData as Record<string, unknown> | undefined;
   const hasExplicitApproved =
@@ -334,7 +336,10 @@ export default function ChauffeurManagementPage() {
     (statusFilter === "APPROVED" ? pagination?.total ?? applications.length : 0);
   const suspendedCount =
     suspendedDrivers.count ??
-    (statusFilter === "SUSPENDED" ? pagination?.total ?? applications.length : 0);;
+    (statusFilter === "SUSPENDED" ? pagination?.total ?? applications.length : 0);
+  const renewalCount =
+    documentRenewals.count ??
+    (statusFilter === "DOCUMENT_RENEWAL" ? pagination?.total ?? applications.length : 0);
 
   const tabOptions: TabOption[] = React.useMemo(
     () => [
@@ -353,6 +358,13 @@ export default function ChauffeurManagementPage() {
         badgeColor: "amber",
       },
       {
+        label: "Document Renewal",
+        value: "DOCUMENT_RENEWAL",
+        icon: FileClock,
+        badgeCount: renewalCount,
+        badgeColor: "amber",
+      },
+      {
         label: "Approved & Active",
         value: "APPROVED",
         icon: CheckCircle2,
@@ -367,7 +379,7 @@ export default function ChauffeurManagementPage() {
         badgeColor: "rose",
       },
     ],
-    [allCount, pendingCount, approvedCount, suspendedCount]
+    [allCount, pendingCount, renewalCount, approvedCount, suspendedCount]
   );
 
   return (

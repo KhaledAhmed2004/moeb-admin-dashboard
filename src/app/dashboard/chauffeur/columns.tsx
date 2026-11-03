@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
-import { Eye, Pencil, Trash2, Loader2, User, Mail, Gift, Crown, Award } from "lucide-react"
+import { Eye, Pencil, Trash2, Loader2, User, Mail, Gift, Crown, Award, FileClock } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AxiosError } from "axios"
@@ -64,6 +64,9 @@ export interface Chauffeur {
       }
     | null;
   stats?: ChauffeurStats;
+  /** Chauffeur re-submitted an expired document that awaits admin review */
+  documentRenewalPending?: boolean;
+  pendingRenewalCount?: number;
   joined?: string;
   createdAt?: string;
   trips?: number;
@@ -416,6 +419,17 @@ export const getColumns = (): ColumnDef<Chauffeur>[] => [
                   {chauffeur.badge}
                 </span>
               ) : null}
+              {chauffeur.documentRenewalPending && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                  title="Re-submitted an expired document — needs review"
+                >
+                  <FileClock size={10} className="text-rose-500" />
+                  {(chauffeur.pendingRenewalCount ?? 1) > 1
+                    ? `${chauffeur.pendingRenewalCount} Renewed Docs`
+                    : "Renewed Doc"}
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-gray-500 font-medium">{chauffeur.email || "No email"}</p>
           </div>
