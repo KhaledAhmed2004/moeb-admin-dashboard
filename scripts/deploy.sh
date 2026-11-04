@@ -34,14 +34,16 @@ main() {
     return 1
   fi
 
+  # Explicit `|| return 1` on every step: this function runs inside an `if`,
+  # where bash ignores `set -e`, so a failed build would otherwise go unnoticed.
   build_and_reload() {
     echo "==> Installing dependencies"
     # Next.js build needs devDependencies (typescript, tailwind, ...).
-    npm ci --include=dev --no-audit --no-fund
+    npm ci --include=dev --no-audit --no-fund || return 1
     echo "==> Building (NEXT_PUBLIC_* values are read from .env now)"
-    npm run build
+    npm run build || return 1
     echo "==> Reloading PM2 process '$pm2_name'"
-    pm2 reload "$pm2_name" --update-env
+    pm2 reload "$pm2_name" --update-env || return 1
   }
 
   health_check() {
