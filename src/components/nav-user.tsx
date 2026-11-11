@@ -42,9 +42,7 @@ export function NavUser({
     await logout();
   };
 
-  const avatarSrc =
-    user?.avatar ||
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop";
+  const avatarSrc = user?.avatar || undefined;
 
   return (
     <div className="w-full">
@@ -82,7 +80,7 @@ export function NavUser({
                     </span>
                   </div>
                   <span className="truncate text-xs text-white/50 font-normal mt-0.5">
-                    {user?.email || "admin@ekkali.com"}
+                    {user?.email}
                   </span>
                 </div>
 
@@ -111,7 +109,7 @@ export function NavUser({
                       {user?.name || "Admin User"}
                     </span>
                     <span className="truncate text-[11px] text-white/50">
-                      {user?.email || "admin@ekkali.com"}
+                      {user?.email}
                     </span>
                     <div className="mt-1 flex items-center gap-1 text-[10px] text-purple-300 font-medium">
                       <Sparkles size={10} className="text-purple-400" />

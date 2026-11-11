@@ -28,6 +28,37 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import Link from "next/link";
+import api from "@/lib/axios";
+import { getMediaUrl } from "@/lib/utils";
+
+type SidebarUser = { name: string; email: string; avatar: string };
+
+function useCurrentUser(): SidebarUser {
+  const [user, setUser] = React.useState<SidebarUser>({ name: "", email: "", avatar: "" });
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/user/profile")
+      .then((res) => {
+        const u = res?.data?.data || res?.data;
+        if (!u || !isMounted) return;
+        setUser({
+          name: u.name || "",
+          email: u.email || "",
+          avatar: u.profilePicture ? getMediaUrl(u.profilePicture) : "",
+        });
+      })
+      .catch(() => {
+        // Keep the empty state; NavUser shows initials/placeholders.
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return user;
+}
 import { SidebarFooter } from "@/components/ui/sidebar";
 
 const data = {
@@ -93,14 +124,10 @@ const data = {
       icon: IconSpeakerphone,
     },
   ],
-  user: {
-    name: "Admin",
-    email: "admin@ekkali.com",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop",
-  }
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const currentUser = useCurrentUser();
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -129,7 +156,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavDocuments items={data.documents} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
   );

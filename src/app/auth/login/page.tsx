@@ -23,9 +23,8 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     defaultValues: {
-      email: "admin@example.com",
-      // TODO: remove prefilled credentials before launch — anyone can log in as admin.
-      password: "12345678",
+      email: "",
+      password: "",
     },
   });
 
