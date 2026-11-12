@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import type { AxiosError } from "axios";
 import api from "@/lib/axios";
 import {
   User,
@@ -26,6 +27,25 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+
+const PASSWORD_COMPLEXITY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]|;:'",.<>/?]).{8,}$/;
+
+const extractApiErrorMessage = (err: unknown, fallback: string) => {
+  const axiosErr = err as AxiosError<{
+    message?: string;
+    errorMessages?: Array<{ path?: string; message?: string }>;
+  }>;
+  const data = axiosErr.response?.data;
+  const detailed = data?.errorMessages
+    ?.map((item) => item?.message)
+    .filter((m): m is string => Boolean(m));
+
+  if (detailed && detailed.length > 0) {
+    return detailed.join(" • ");
+  }
+  return data?.message || fallback;
+};
 
 export default function AdminProfilePage() {
   // Profile Form State with local fallback initializers
@@ -78,8 +98,10 @@ export default function AdminProfilePage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Password Form State
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
@@ -195,12 +217,24 @@ export default function AdminProfilePage() {
     }
   };
 
-  // Password Update (Admin does not require current password)
+  const isNewPasswordValid = PASSWORD_COMPLEXITY_REGEX.test(newPassword);
+
+  // Password Update
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters");
+    if (!currentPassword) {
+      toast.error("Current password is required");
+      return;
+    }
+    if (!isNewPasswordValid) {
+      toast.error(
+        "Password must include upper, lower, number, special and be 8+ chars"
+      );
+      return;
+    }
+    if (newPassword === currentPassword) {
+      toast.error("New password must be different from current password");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -212,23 +246,41 @@ export default function AdminProfilePage() {
 
     try {
       const payload = {
+        currentPassword,
         newPassword,
         confirmPassword,
       };
 
-      await api.post("/auth/change-password", payload).catch(async () => {
-        await api.patch("/auth/change-password", payload).catch(async () => {
-          await api.put("/users/change-password", payload);
-        });
-      });
+      const endpoints: Array<{ method: "post" | "patch" | "put"; url: string }> = [
+        { method: "post", url: "/auth/change-password" },
+        { method: "patch", url: "/auth/change-password" },
+        { method: "put", url: "/users/change-password" },
+      ];
 
-      toast.success("Password changed successfully!");
+      let responseData: { message?: string } | undefined;
+      for (let i = 0; i < endpoints.length; i++) {
+        const { method, url } = endpoints[i];
+        try {
+          const res = await api[method](url, payload);
+          responseData = res?.data;
+          break;
+        } catch (err: unknown) {
+          const status = (err as AxiosError)?.response?.status;
+          const isMethodOrRouteMissing = status === 404 || status === 405;
+          if (!isMethodOrRouteMissing || i === endpoints.length - 1) {
+            throw err;
+          }
+        }
+      }
+
+      toast.success(responseData?.message || "Password changed successfully!");
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      const msg = axiosErr.response?.data?.message || "Failed to update password. Please try again.";
-      toast.error(msg);
+      toast.error(
+        extractApiErrorMessage(err, "Failed to update password. Please try again.")
+      );
     } finally {
       setIsSavingPassword(false);
     }
@@ -359,11 +411,39 @@ export default function AdminProfilePage() {
             Change Password
           </CardTitle>
           <CardDescription className="text-xs">
-            Set a new password for your administrator account.
+            Enter your current password to set a new password for your administrator account.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSavePassword} className="space-y-4">
+            {/* Current Password */}
+            <div className="space-y-2">
+              <Label htmlFor="current-pass" className="text-xs font-medium text-gray-700">
+                Current Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  id="current-pass"
+                  type={showCurrentPass ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  autoComplete="current-password"
+                  className="pl-10 pr-9 h-10 rounded-lg bg-gray-50/50 border-gray-200 text-xs focus:bg-white"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPass(!showCurrentPass)}
+                  aria-label={showCurrentPass ? "Hide current password" : "Show current password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  {showCurrentPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* New Password */}
               <div className="space-y-2">
@@ -377,13 +457,15 @@ export default function AdminProfilePage() {
                     type={showNewPass ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min. 6 characters"
+                    placeholder="8+ chars (upper, lower, number, special)"
+                    autoComplete="new-password"
                     className="pl-10 pr-9 h-10 rounded-lg bg-gray-50/50 border-gray-200 text-xs focus:bg-white"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
+                    aria-label={showNewPass ? "Hide new password" : "Show new password"}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                   >
                     {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -404,12 +486,14 @@ export default function AdminProfilePage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat new password"
+                    autoComplete="new-password"
                     className="pl-10 pr-9 h-10 rounded-lg bg-gray-50/50 border-gray-200 text-xs focus:bg-white"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    aria-label={showConfirmPass ? "Hide confirm password" : "Show confirm password"}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                   >
                     {showConfirmPass ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -417,6 +501,20 @@ export default function AdminProfilePage() {
                 </div>
               </div>
             </div>
+
+            {newPassword && !isNewPasswordValid && (
+              <p className="text-[11px] text-rose-500 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.
+              </p>
+            )}
+
+            {currentPassword && newPassword && currentPassword === newPassword && (
+              <p className="text-[11px] text-rose-500 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                New password must be different from your current password.
+              </p>
+            )}
 
             {confirmPassword && newPassword !== confirmPassword && (
               <p className="text-[11px] text-rose-500 flex items-center gap-1 font-medium">
