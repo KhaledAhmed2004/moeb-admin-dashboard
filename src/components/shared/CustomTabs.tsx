@@ -29,6 +29,8 @@ const getBadgeStyles = (color?: string, isActive?: boolean) => {
       return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300";
     case "rose":
       return "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300";
+    case "gray":
+      return "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200";
     case "indigo":
     default:
       return "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300";

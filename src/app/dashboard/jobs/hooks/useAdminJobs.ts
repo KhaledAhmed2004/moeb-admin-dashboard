@@ -11,6 +11,38 @@ import {
   JobStatus,
 } from "../types";
 
+interface RawPaginationMeta {
+  total?: number;
+  page?: number;
+  limit?: number;
+  totalPage?: number;
+}
+
+interface RawJobsEnvelope {
+  data?: IAdminJob[] | { data?: IAdminJob[]; meta?: RawPaginationMeta; pagination?: RawPaginationMeta };
+  meta?: RawPaginationMeta;
+  pagination?: RawPaginationMeta;
+}
+
+/** Normalize both `{ data: [...], meta }` and `{ data: { data: [...], meta } }` API responses. */
+function extractJobsListAndMeta(raw: RawJobsEnvelope | IAdminJob[] | undefined) {
+  if (Array.isArray(raw)) {
+    return { items: raw, meta: undefined };
+  }
+
+  const inner = raw?.data;
+  const items: IAdminJob[] = Array.isArray(inner)
+    ? inner
+    : Array.isArray(inner?.data)
+    ? inner.data
+    : [];
+
+  const innerObj = inner && !Array.isArray(inner) ? inner : undefined;
+  const meta = innerObj?.meta ?? innerObj?.pagination ?? raw?.meta ?? raw?.pagination;
+
+  return { items, meta };
+}
+
 export function useAdminJobs(params: JobQueryParams) {
   return useQuery<AdminJobsResponse>({
     queryKey: ["admin-jobs", params],
@@ -44,39 +76,20 @@ export function useAdminJobs(params: JobQueryParams) {
         params: cleanParams,
       });
 
-      const resData = response.data?.data ?? response.data;
+      const { items, meta } = extractJobsListAndMeta(response.data);
+      const total = meta?.total ?? items.length;
+      const limit = meta?.limit ?? params.limit ?? 10;
 
-      // Handle backend QueryBuilder meta or standard pagination
       const pagination = {
-        total:
-          resData?.meta?.total ??
-          resData?.pagination?.total ??
-          (Array.isArray(resData?.data) ? resData.data.length : 0),
-        page:
-          resData?.meta?.page ??
-          resData?.pagination?.page ??
-          params.page ??
-          1,
-        limit:
-          resData?.meta?.limit ??
-          resData?.pagination?.limit ??
-          params.limit ??
-          10,
-        totalPage:
-          resData?.meta?.totalPage ??
-          resData?.pagination?.totalPage ??
-          1,
+        total,
+        page: meta?.page ?? params.page ?? 1,
+        limit,
+        totalPage: meta?.totalPage ?? Math.max(1, Math.ceil(total / limit)),
       };
-
-      const data = Array.isArray(resData?.data)
-        ? resData.data
-        : Array.isArray(resData)
-        ? resData
-        : [];
 
       return {
         pagination,
-        data,
+        data: items,
       };
     },
     refetchInterval: 30000,
@@ -101,12 +114,31 @@ export function useAdminJobStats() {
     queryFn: async () => {
       try {
         const response = await api.get("/jobs/admin/stats");
-        if (
-          response.data?.data &&
-          typeof response.data.data === "object" &&
-          "total" in response.data.data
-        ) {
-          return response.data.data;
+        const rawStats = response.data?.data ?? response.data;
+        if (rawStats && typeof rawStats === "object" && "total" in rawStats) {
+          const statsData = rawStats as Partial<JobStats>;
+          const total = Number(statsData.total) || 0;
+          const pending = Number(statsData.pending) || 0;
+          const assigned = Number(statsData.assigned) || 0;
+          const completed = Number(statsData.completed) || 0;
+          const cancelled = Number(statsData.cancelled) || 0;
+          const expired =
+            typeof statsData.expired === "number"
+              ? statsData.expired
+              : Math.max(
+                  0,
+                  total - (pending + assigned + completed + cancelled)
+                );
+
+          return {
+            total,
+            pending,
+            assigned,
+            completed,
+            cancelled,
+            expired,
+            totalRevenue: Number(statsData.totalRevenue) || 0,
+          };
         }
       } catch {
         // Fallback to computing from /jobs/admin/all-jobs
@@ -116,29 +148,26 @@ export function useAdminJobStats() {
         const res = await api.get("/jobs/admin/all-jobs", {
           params: { limit: 500 },
         });
-        const resData = res.data?.data ?? res.data;
-        const items: IAdminJob[] = Array.isArray(resData?.data)
-          ? resData.data
-          : Array.isArray(resData)
-          ? resData
-          : [];
-        const total =
-          resData?.meta?.total ?? resData?.pagination?.total ?? items.length;
-        const pending = items.filter(
-          (j) => (j.status || "").toUpperCase() === "PENDING"
-        ).length;
-        const assigned = items.filter(
-          (j) => (j.status || "").toUpperCase() === "ASSIGNED"
-        ).length;
-        const completed = items.filter(
-          (j) => (j.status || "").toUpperCase() === "COMPLETED"
-        ).length;
-        const cancelled = items.filter(
-          (j) => (j.status || "").toUpperCase() === "CANCELLED"
-        ).length;
-        const totalRevenue = items
-          .filter((j) => (j.status || "").toUpperCase() === "COMPLETED")
-          .reduce((acc, curr) => acc + (Number(curr.paymentAmount) || 0), 0);
+        const { items, meta } = extractJobsListAndMeta(res.data);
+        const total = meta?.total ?? items.length;
+
+        let pending = 0;
+        let assigned = 0;
+        let completed = 0;
+        let cancelled = 0;
+        let expired = 0;
+        let totalRevenue = 0;
+
+        for (const job of items) {
+          const status = (job.status || "").toUpperCase();
+          if (status === "PENDING") pending++;
+          else if (status === "ASSIGNED") assigned++;
+          else if (status === "COMPLETED") {
+            completed++;
+            totalRevenue += Number(job.paymentAmount) || 0;
+          } else if (status === "CANCELLED") cancelled++;
+          else if (status === "EXPIRED") expired++;
+        }
 
         return {
           total,
@@ -146,6 +175,7 @@ export function useAdminJobStats() {
           assigned,
           completed,
           cancelled,
+          expired,
           totalRevenue,
         };
       } catch {
@@ -155,6 +185,7 @@ export function useAdminJobStats() {
           assigned: 0,
           completed: 0,
           cancelled: 0,
+          expired: 0,
           totalRevenue: 0,
         };
       }

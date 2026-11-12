@@ -733,6 +733,12 @@ export function JobDetailModal({
                           CANCELLED
                         </span>
                       </SelectItem>
+                      <SelectItem value="EXPIRED" className="text-xs font-semibold text-zinc-700">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-zinc-500" />
+                          EXPIRED
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {updateStatusMutation.isPending && (
@@ -744,7 +750,9 @@ export function JobDetailModal({
 
                 {/* Right: Action Buttons (Cancel, Delete, Close) */}
                 <div className="flex items-center gap-2">
-                  {job.status !== "CANCELLED" && job.status !== "COMPLETED" && (
+                  {job.status !== "CANCELLED" &&
+                    job.status !== "COMPLETED" &&
+                    job.status !== "EXPIRED" && (
                     <Button
                       variant="outline"
                       size="sm"

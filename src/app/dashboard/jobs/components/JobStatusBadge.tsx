@@ -5,6 +5,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  AlertCircle,
   Car,
   Navigation,
   MapPin,
@@ -50,6 +51,13 @@ export function JobStatusBadge({ status }: { status: JobStatus }) {
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200/80 shadow-2xs">
           <XCircle size={12} className="text-rose-500" />
           Cancelled
+        </span>
+      );
+    case "EXPIRED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-300/80 shadow-2xs">
+          <AlertCircle size={12} className="text-zinc-500" />
+          Expired
         </span>
       );
     default:

@@ -1,4 +1,9 @@
-export type JobStatus = 'PENDING' | 'ASSIGNED' | 'COMPLETED' | 'CANCELLED';
+export type JobStatus =
+  | 'PENDING'
+  | 'ASSIGNED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'EXPIRED';
 
 export type RideStatus =
   | 'PENDING'
@@ -89,6 +94,7 @@ export interface JobStats {
   assigned: number;
   completed: number;
   cancelled: number;
+  expired: number;
   totalRevenue: number;
 }
 

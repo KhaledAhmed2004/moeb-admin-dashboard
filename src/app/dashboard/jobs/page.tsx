@@ -120,6 +120,12 @@ export default function JobManagementPage() {
       badgeCount: stats?.cancelled,
       badgeColor: "rose",
     },
+    {
+      label: "Expired",
+      value: "EXPIRED",
+      badgeCount: stats?.expired,
+      badgeColor: "gray",
+    },
   ];
 
   // Table Actions
@@ -279,7 +285,7 @@ export default function JobManagementPage() {
       />
 
       {/* Metrics StatCards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard
           title="Total Rides"
           value={stats?.total ?? 0}
@@ -298,6 +304,11 @@ export default function JobManagementPage() {
         <StatCard
           title="Completed Trips"
           value={stats?.completed ?? 0}
+          isLoading={isStatsLoading}
+        />
+        <StatCard
+          title="Expired Jobs"
+          value={stats?.expired ?? 0}
           isLoading={isStatsLoading}
         />
       </section>
